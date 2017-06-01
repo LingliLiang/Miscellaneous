@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Window caption="0,0,0,64"  mininfo="300,200" roundcorner="6,6" defaultfontcolor="#FFF3F3F3">
+	<Include source="common\\scrollbar2.xml" />
+	<Font name="微软雅黑" size="15" default="true" bold="false" />
+	<VerticalLayout bkcolor="#FF202020" bordersize="1" bordercolor="#FF292929" roundcorner="6,6">
+		<HorizontalLayout height="64" inset="20,20,20,20" childpadding="6">
+			<Label name="lb_icon" height="24" width="24"/> <Text name="t_caption" text="info" align="vcenter"/>
+		</HorizontalLayout>
+		<HorizontalLayout  inset="20,0,20,0">
+			<RichEdit name="re_texts" textcolor="#FFF3F3F3" vscrollbar="true" enabled="true" readonly="true" />
+		</HorizontalLayout>
+		<Control height="1" bkcolor="#FF000000"/>
+		<HorizontalLayout name="hl_btn" bkcolor="#FF262626" height="60" inset="20,15,20,15" childpadding="4" >
+			<Control />
+			<Button name="btn_ok" text="是" height="30" width="80" visible="fasle" normalimage="file='common\\btn_normal.png' corner='4,4,4,4' " hotimage="file='common\\btn_hot.png' corner='4,4,4,4' " pushedimage="file='common\\btn_pushed.png' corner='4,4,4,4' " />
+			<Button name="btn_no" text="否" height="30" width="80" visible="fasle" normalimage="file='common\\btn_normal.png' corner='4,4,4,4' " hotimage="file='common\\btn_hot.png' corner='4,4,4,4' " pushedimage="file='common\\btn_pushed.png' corner='4,4,4,4' " />
+			<Button name="btn_cancel" text="取消" height="30" width="80" visible="fasle" normalimage="file='common\\btn_normal.png' corner='4,4,4,4' " hotimage="file='common\\btn_hot.png' corner='4,4,4,4' " pushedimage="file='common\\btn_pushed.png' corner='4,4,4,4' " />
+		</HorizontalLayout>
+	</VerticalLayout>
+</Window>

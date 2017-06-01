@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<Window  caption="0,0,0,40" roundcorner="4,4" mininfo="68,50" sizebox="2,2,2,2">
+  <Include source="common\\scrollbar2.xml"/>
+  <Font name="微软雅黑" size="13" bold="true" default="true" />
+  <Font name="微软雅黑" size="15" bold="false" />
+  <VerticalLayout name="vl_ctl" inset="2,2,2,2" bordersize="2" bkcolor="#FF202020" roundcorner="0,0" bordercolor="#FF363636">
+    <HorizontalLayout height="32" inset="10,0,0,0" >
+      <HorizontalLayout inset="0,2,0,2">
+        <Label width="170" height="27" bkimage="app_icon.png" />
+      </HorizontalLayout>
+      <Control />
+      <Option name="pin" width="25" height="25"   tooltip="置顶" normalimage="common\\btn_pin_normal.png" hotimage="common\\btn_pin_hot.png" selectedimage="common\\btn_pin_select.png" selectedhotimage="common\\btn_pined_hot.png" />
+      <Control width="2" />
+      <Option name="fullscr" width="25" height="25"  tooltip="全屏"  normalimage="common\\btn_fullscr_normal.png" hotimage="common\\btn_fullscr_hot.png"  selectedimage="common\\btn_restore_normal.png" selectedhotimage="common\\btn_restore_hot.png"  />
+      <Control width="2" />
+      <Button name="close" width="25" height="25" tooltip="关闭"  normalimage="common\\btn_close_normal.png" hotimage="common\\btn_close_hot.png" pushedimage="common\\btn_close_select.png"/>
+      <Control width="2" />
+    </HorizontalLayout>
+    <HorizontalLayout height="1" bkcolor="#FF000000" />
+  </VerticalLayout>
+</Window>

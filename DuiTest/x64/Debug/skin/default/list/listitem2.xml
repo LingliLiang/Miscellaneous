@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Window>
+	<HorizontalLayout inset="5,5,0,5" height="122">
+		<VerticalLayout bkcolor="#FF000000">
+			<Edit textcolor="#FFC5C5C5" font="0" endellipsis="true"/>
+			<Control />
+			<HorizontalLayout height="19" >
+				<HorizontalLayout  name="status_bar" inset="0,0,0,0" width="38">
+					<Control width="19" bkimage="list\\sheet_icon.png" />
+					<Control width="19" bkimage="list\\publish_icon.png" />
+				</HorizontalLayout>
+			</HorizontalLayout>
+		</VerticalLayout>
+		<VerticalLayout width="75" inset="5,0,5,0">
+			<CheckBox  height="29"  normalimage="list\\btn_unpublish_normal.png" hotimage="list\\btn_unpublish_hot.png" selectedimage="list\\btn_unpublish_select.png" disabledimage="list\\btn_unpublish_disable.png" selectednormalimage="list\\btn_publish_normal.png" selectedhotimage="list\\btn_publish_hot.png" selectedselectedimage="list\\btn_publish_select.png" selecteddisabledimage="list\\btn_publish_disable.png">
+			</CheckBox>
+			<Control />
+			<Button  height="29"  normalimage="list\\btn_refresh_normal.png" hotimage="list\\btn_refresh_hot.png" selectedimage="list\\btn_refresh_select.png" disabledimage="list\\btn_refresh_disable.png" >
+			</Button>
+			<Control />
+			<Button name="btn_cg_set" height="29" tooltip="3" normalimage="list\\btn_set_normal.png" hotimage="list\\btn_set_hot.png" selectedimage="list\\btn_set_select.png" disabledimage="list\\btn_set_disable.png" >
+			</Button>
+		</VerticalLayout>
+	</HorizontalLayout>
+</Window>

@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Window >
+  <LayerList name="layerlist" width="200" bkcolor="#ffFFFFF1" childpadding="2" vermode="true" vscrollbar="true">
+    <Layer name="1" height="30" >
+      <Label padding="3,6,3,6" height="16" width="18" bkimage="data_menu_text.png" />
+      <Edit width="100" bkcolor="#FF564270" nativebkcolor="#FF564270" bordersize="1" bordercolor="#FF242424" focusbordercolor="#FF363636" borderround="1,1" endellipsis="true" align="vleft" textcolor="#FFA5A5A5" disabledtextcolor="#FFEEEEEE"/>
+    </Layer>
+    <Group height="80"  iteminset="10,0,0,0" >
+      <GroupHeader name="g1">
+        <Label text="Group Name" />
+        <Button text="Group button" />
+      </GroupHeader>
+      <Layer name="2" height="30" >
+        <Label padding="3,6,3,6" height="16" width="18" bkimage="time_icon.png" />
+        <Edit width="100" bkcolor="#FF564270" nativebkcolor="#FF564270" bordersize="1" bordercolor="#FF242424" focusbordercolor="#FF363636" borderround="1,1" endellipsis="true" align="vleft" textcolor="#FFA5A5A5" disabledtextcolor="#FFEEEEEE"/>
+      </Layer>
+      <Layer name="3" height="30" >
+        <Label padding="3,6,3,6" height="16" width="18"  bkimage="data_menu_pic.png" />
+        <Edit width="100" bkcolor="#FF564270" nativebkcolor="#FF564270" bordersize="1" bordercolor="#FF242424" focusbordercolor="#FF363636" borderround="1,1" endellipsis="true" align="vleft" textcolor="#FFA5A5A5" disabledtextcolor="#FFEEEEEE"/>
+      </Layer>
+    </Group>
+    <Layer name="4" height="30"  >
+      <Label padding="3,6,3,6" height="16" width="18" bkimage="data_menu_text.png" />
+      <Edit width="100" bkcolor="#FF564270" nativebkcolor="#FF564270" bordersize="1" bordercolor="#FF242424" focusbordercolor="#FF363636" borderround="1,1" endellipsis="true" align="vleft" textcolor="#FFA5A5A5" disabledtextcolor="#FFEEEEEE"/>
+    </Layer>
+  </LayerList>
+</Window>

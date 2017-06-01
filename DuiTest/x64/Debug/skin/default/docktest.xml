@@ -1,0 +1,64 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<Window size="640,480" caption="0,0,0,30" roundcorner="2,2" sizebox="4,4,4,4" defaultfontcolor="#FFF3F3F3" >
+  <Font name="微软雅黑" size="14" bold="false" default="true" />
+  <Font name="微软雅黑" size="24" bold="false" />
+  <Default name="Label" value="width=&quot;800&quot; height=&quot;80&quot; align=&quot;center&quot; bkcolor=&quot;#FF181818&quot; nativebkcolor=&quot;#FF181818&quot; bordersize=&quot;2&quot; bordercolor=&quot;#FF000000&quot; focusbordercolor=&quot;#FF363636&quot; borderround=&quot;4,4&quot; disabledtextcolor=&quot;#FFF3F3F3&quot; " />
+  <Default name="Edit" value="align=&quot;center&quot; bkcolor=&quot;#FF181818&quot; nativebkcolor=&quot;#FF181818&quot; bordersize=&quot;2&quot; bordercolor=&quot;#FF000000&quot; focusbordercolor=&quot;#FF363636&quot; borderround=&quot;4,4&quot; disabledtextcolor=&quot;#FFF3F3F3&quot; " />
+  <Default name="DockTitleText" value="selectedtextcolor=&quot;#FFFF0000&quot; pushedtextcolor=&quot;#FF00FF00&quot; hottextcolor=&quot;#FF888888&quot; textpadding=&quot;5,5,5,5&quot; " />
+  <Default name="DockTitleItem" value="" /><!--bkimage=&quot;11.png&quot;-->
+  <Include source="common\\scrollbar2.xml" />
+  <VerticalLayout inset="2,2,2,2" bordersize="2" bordercolor="#FF161616"  bkcolor="#FF282828">
+    <HorizontalLayout height="30" bkcolor="#FF191919" >
+      <Label width="120" height="30" padding="5,0,0,0" text="asddsad"/>
+      <Control />
+      <Button name="btn_test1" text="*"  height="30" width="30"  font="1" textcolor="#FFAAAAAA" hottextcolor="#FF808080" pushedtextcolor="#FF606060"/>
+      <Button name="btn_test" text="@"  height="30" width="30"  font="1" textcolor="#FFAAAAAA" hottextcolor="#FF808080" pushedtextcolor="#FF606060"/>
+      <Button name="btn_close" text="×"  height="30" width="30"  font="1" textcolor="#FFAAAAAA" hottextcolor="#FF808080" pushedtextcolor="#FF606060"/>
+    </HorizontalLayout>
+    <HorizontalLayout>
+      <DockPanel titlepos="E"  winindex="2" ><!--winxml="common\\floatwin.xml"-->
+        <DockTitle bkcolor="#FF122121" itemhotbkcolor="#FF2424ee" itemselectedbkcolor="#FF242466" itembkcolor="#FF242424"
+                calcsize="true">
+          <DockTitleItem text="asdadsad" selected="true"  floatout="false"/>
+          <DockTitleItem text="上打勾符号888" />
+          <DockTitleItem text="@￥￥%½©" />
+        </DockTitle>
+        <Docker bkcolor="#FF122121"  text="asdadsad" >
+          <HorizontalLayout hscrollbar="true" vscrollbar="true" >
+            <Label />
+            <Label />
+            <Label />
+            <Label />
+            <Label />
+            <Label />
+            <Label />
+          </HorizontalLayout>
+        </Docker>
+        <Docker bkcolor="#FF006651"  text="上打勾符号">
+          <VerticalLayout hscrollbar="true" vscrollbar="true" >
+            <Label />
+            <Label />
+            <Label />
+            <Label />
+            <Label />
+            <Label />
+            <Label />
+          </VerticalLayout>
+        </Docker>
+        <Docker bkcolor="#FF198900" text="@￥￥%½©">
+        </Docker>
+      </DockPanel>
+    </HorizontalLayout>
+    <HorizontalLayout height="40">
+      <ComboEdit  height="40" itemtextcolor="#FFF3F3F3" itemselectedtextcolor="#FFF3F3F3" itemhottextcolor="#FFF3F3F3" vscrollbar="true"
+                       itembkcolor="#FF202020" itemselectedbkcolor="#FF121212" itemhotbkcolor="#FF292929" itemtextpadding="8,0,0,0"
+                        normalimage="file='config\\combo_normal.png' corner='3,3,26,3' " hotimage="file='config\\combo_hot.png' corner='3,3,26,3' " pushedimage="file='config\\combo_pushed.png' corner='3,3,26,3' ">
+        <ListLabelElement text="sdfghfghfds" ></ListLabelElement>
+        <ListLabelElement text="sdasd4565dsfds" ></ListLabelElement>
+        <ListLabelElement text="sd234235dsfds" ></ListLabelElement>
+        <ListLabelElement text="sdas5875857sfds" ></ListLabelElement>
+        <ListLabelElement text="sdgjhj34536s" ></ListLabelElement>
+      </ComboEdit>
+    </HorizontalLayout>
+  </VerticalLayout>
+</Window>
