@@ -3,7 +3,9 @@
 
 #pragma once
 #include <vector>
+#include <memory>
 #include <functional>
+#include <map>
 
 extern const TCHAR* DUI_CTR_LAYERLIST;
 extern const TCHAR* DUI_CTR_LAYERITEM;
@@ -12,8 +14,31 @@ extern const TCHAR* DUI_CTR_GROUPHEADER;
 extern const TCHAR* INTERFACE_INTERMSG;
 namespace DirectUI
 {
+	class CLayerUI;
+	class CGroupHeaderUI;
 	class CGroupUI;
 	class CLayerLayoutUI;
+	typedef struct _tagControlPosInfo
+	{
+		//CControlUI* pControl_;
+		CRect rcFit;
+		_tagControlPosInfo()
+			//:pControl_(nullptr)
+		{
+		}
+	}ControlPosInfo;
+	typedef std::map<CControlUI*, ControlPosInfo> MapCtl;
+	typedef std::map<CControlUI*, ControlPosInfo>::value_type MapCtlVt;
+	typedef std::map<CControlUI*, ControlPosInfo>::iterator MapCtlIt;
+
+	typedef struct _tagMoveItemInfo
+	{
+		CControlUI* src;
+		CControlUI* dst;
+		CGroupUI* gp_dst;
+		int nLinePos;
+		_tagMoveItemInfo() :src(0), dst(0), gp_dst(0), nLinePos(0) {}
+	}MoveItemInfo;
 
 	typedef struct _tagLayerInfo
 	{
@@ -30,9 +55,10 @@ namespace DirectUI
 		CString sItemHotImage;
 		CString sItemSelectedImage;
 		CLayerLayoutUI* pLayout;
+		MapCtl mapControl;
 		_tagLayerInfo()
 			:nLayerHeight(30),nGroupHeaderHeight(30),
-			dwItemMoveColor(0xFF1C3539),dwItemHotBkColor(0xFF6B9299),
+			dwItemMoveColor(0xFF803680),dwItemHotBkColor(0xFF6B9299),
 			dwItemSelectedBkColor(0xFF258C9C),pLayout(0)
 		{}
 	} LayerInfo;
@@ -50,23 +76,27 @@ namespace DirectUI
 
 		class IInterMessage
 		{
+
 		public:
+			typedef bool (IInterMessage::*EventFunc)(void*);
+
 			//virtual void MessageAcross(TEventUI* event_,InterNotifyMsg what); // 
 			virtual void Message(TEventUI* event_,InterNotifyMsg what) = 0;
 			virtual bool OnChildEvent(void* event_in) = 0;
 		protected:
-			shared_ptr<_tagLayerInfo> m_LayerInfo;
+			std::shared_ptr<_tagLayerInfo> m_LayerInfo;
+			void AttachEvent(CControlUI* pControl, IInterMessage* pthis, EventFunc pfunc, bool self = false);
+			void ShareInfo(CControlUI* pControl, std::shared_ptr<_tagLayerInfo>& info);
+			void CheckControl(CControlUI* pControl);
 		};
-		typedef bool (IInterMessage::*EventFunc)(void*);
-		static void AttachEvent(CControlUI* pControl, IInterMessage* pthis, EventFunc pfunc, bool self = false);
-		static void ShareInfo(CControlUI* pControl, shared_ptr<_tagLayerInfo>& info);
+	
 	}
 
 	class CLayerUI  : public CHorizontalLayoutUI, public Inter::IInterMessage
 	{
 		friend class CGroupUI;
 		friend class CLayerLayoutUI;
-		friend void Inter::ShareInfo(CControlUI* pControl, shared_ptr<_tagLayerInfo>& info);
+		//friend void Inter::ShareInfo(CControlUI* pControl, std::shared_ptr<_tagLayerInfo>& info);
 	public:
 		CLayerUI();
 		virtual LPCTSTR GetClass() const;
@@ -96,7 +126,7 @@ namespace DirectUI
 		: public CVerticalLayoutUI , public Inter::IInterMessage
 	{
 		friend class CLayerLayoutUI;
-		friend void Inter::ShareInfo(CControlUI* pControl, shared_ptr<_tagLayerInfo>& info);
+		//friend void Inter::ShareInfo(CControlUI* pControl, std::shared_ptr<_tagLayerInfo>& info);
 	public:
 		CGroupUI();
 		~CGroupUI();
@@ -107,6 +137,8 @@ namespace DirectUI
 
 		//Note: if U add some controls, don't add at index 0; index 0 -  place element GroupHeader
 		bool Add(CControlUI* pControl);
+		bool Remove(CControlUI* pControl);
+		bool RemoveNotDestroy(CControlUI* pControl);
 		void RemoveAll();
 		void SetAttribute(LPCTSTR pstrName, LPCTSTR pstrValue);
 		void SetItemAttribute(LPCTSTR pstrName, LPCTSTR pstrValue);
@@ -186,8 +218,6 @@ namespace DirectUI
 			return true;
 		}
 
-		std::vector<std::function<void(void)>> m_funcDrop;
-		std::vector<std::function<void(void)>> m_funcSelect;
 	protected:
 		virtual void Message(TEventUI* event_, Inter::InterNotifyMsg what);
 		virtual bool OnChildEvent(void* event_in);
@@ -211,7 +241,6 @@ namespace DirectUI
 		virtual void PaintText(HDC hDC);
 		virtual void PaintBorder(HDC hDC);
 		
-		virtual void PaintMoveLine(HDC hDC);
 		virtual void PaintMoveItem(HDC hDC);
 
 		CControlUI* GetCurSel();
@@ -219,15 +248,25 @@ namespace DirectUI
 
 		bool DrawImage(HDC hDC,const RECT &rcItem, LPCTSTR pStrImage, LPCTSTR pStrModify = NULL);
 
-		void ClearAll();
 		bool CheckRectInvalid(RECT &rc);
 
 		void EnsureVisible(int nIndex);
 
+		void SetPos(RECT rc);
 		bool Add(CControlUI* pControl);
+		bool Remove(CControlUI* pControl);
+		bool RemoveNotDestroy(CControlUI* pControl);
+		void RemoveAll();
+
+		void MoveItem(int nSrcIndex, int nDesIndex);
+		void MoveItem();
+	protected:
+		virtual CControlUI* PtHitControl(POINT ptMouse, int &nIndex);
+		virtual CControlUI* PtRoundControl(POINT ptMouse);
+		bool MakeCursorImage(HDC hDC, const CRect rcItem, const CPoint pt, int alpha = 200);
+
 	protected:
 
-		virtual CControlUI* PtHitControl(POINT ptMouse, int &nIndex);
 		struct _tagCursorRes
 		{
 			HCURSOR hCursor;
@@ -248,18 +287,21 @@ namespace DirectUI
 				}
 			}
 		} m_hCursor;
-		bool MakeCursorImage(HDC hDC,const CRect rcItem, const CPoint pt, int alpha = 200);
-		CControlUI* m_pSelControl;
+		
+		std::vector<std::function<void(void)>> m_funcDrop;
+		std::vector<std::function<void(void)>> m_funcSelect;
+
+		std::map<CControlUI*,void*> m_pSelControl;
 		CControlUI* m_pHotControl;
-		bool m_bVertical;
-		int m_iSepWidth;
-		UINT m_uButtonState;
+		bool m_bMultiSel;
+
+		MoveItemInfo m_miInfo;
+
 		POINT ptLastMouse;
 		RECT m_rcNewPos;
-		bool m_bImmMode;
-		int m_iCurSel;
+		
+		bool m_bVertical;
 		bool m_bEnsureVisible; //选中的时候是否移动位置
 	};
-
-}
+	}
 #endif // __LAYERLISTUI_H__
