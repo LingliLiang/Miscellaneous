@@ -63,24 +63,121 @@ namespace DirectUI
 		}
 	}
 
+	static CContainerUI* GetParentLayout(CControlUI* p)
+	{
+		CControlUI* pcon = p->GetParent();
+		if(pcon)  return(CContainerUI*)(pcon->GetInterface(DUI_CTR_CONTAINER));
+		return nullptr;
+	}
+
+	static std::pair<CControlUI *,CControlUI *> GetNeighbor(CControlUI* p)
+	{
+		CControlUI* p1 = nullptr;
+		CControlUI* p2 = nullptr;
+		CGroupUI* pGroup = nullptr;
+		CContainerUI* pLayout = GetParentLayout(p);
+		int index = pLayout->GetItemIndex(p);
+		int size = pLayout->GetCount() -1;
+		if(pLayout)
+		{
+			//neighbor top
+			if(index > 0){
+				p1 = pLayout->GetItemAt(index - 1);
+				pGroup = (CGroupUI*)(p1->GetInterface(DUI_CTR_GROUPITEM));
+				if(pGroup)
+				{
+					p1 = pGroup->GetHeaderUI();
+				}
+			}
+			//neighbor bottom
+			if(index < size)
+			{
+				p2 = pLayout->GetItemAt(index + 1);
+				pGroup = (CGroupUI*)(p2->GetInterface(DUI_CTR_GROUPITEM));
+				if(pGroup)
+				{
+					p2 = pGroup->GetHeaderUI();
+				}
+			}
+		}
+
+		return std::make_pair(p1,p2);
+	}
+
 	class MapControlFind
 	{
 	public:
 		MapControlFind(POINT pt, MoveItemInfo& mii) :pt_(pt),mii_(mii) {}
 		bool operator()(const MapCtlVt &pair)
 		{
-			//return pair.second.pCtl.pControl == 0;
-			LONG half = ((pair.second.rcFit.bottom - pair.second.rcFit.top)>>1) + pair.second.rcFit.top;
-			if (pair.second.rcFit.bottom >= pt_.y && half <= pt_.y)
-			{
-				mii_.nLinePos = pair.second.rcFit.bottom + 1;
-				return true;
-			}
-			else if (pair.second.rcFit.top <= pt_.y && half >= pt_.y)
-			{
-				mii_.nLinePos = pair.second.rcFit.top - 1;
-				return true;
-			}
+			do{
+				if(mii_.src == pair.first)
+				{
+					mii_.nLinePos = 0;
+					break; //it-self
+				}
+				if(mii_.src->GetInterface(DUI_CTR_GROUPHEADER)) //Group aceptor
+				{
+					CGroupUI* pLayout = (CGroupUI*)GetParentLayout(mii_.src);
+					if(pLayout)
+					{
+						RECT rc = pLayout->GetPos();
+						rc.bottom+=4;
+						if(::PtInRect(&rc,pt_))
+						{
+							break; //Group-self
+						}
+					}
+				}
+				LONG half = ((pair.second.rcFit.bottom - pair.second.rcFit.top)>>1) + pair.second.rcFit.top;
+				CContainerUI* pLayout = GetParentLayout(pair.first);
+				int index = pLayout->GetItemIndex(pair.first);
+				std::pair<CControlUI *,CControlUI *> pairNeighbor = GetNeighbor(mii_.src);//get moving selected item neighbors
+				mii_.bGroup = 0;
+				//bottom line control
+				if (pair.second.rcFit.bottom >= pt_.y && half <= pt_.y)
+				{
+					if(pair.first->GetInterface(DUI_CTR_GROUPHEADER)) //Group aceptor
+					{
+						mii_.dst = pair.first;
+						mii_.nLinePos = -1;
+						mii_.bGroup = 1;
+						mii_.gp_dst = (CContainerUI*)pair.first->GetParent();
+						return true;
+					}
+					if(pairNeighbor.first == pair.first)
+					{
+						break;
+					}
+					mii_.nLinePos = pair.second.rcFit.bottom + 1;
+					mii_.dst = pair.first;
+					mii_.gp_dst = pLayout;
+					mii_.bTop = 0;
+					return true;
+				}
+				//top line control
+				else if (pair.second.rcFit.top <= pt_.y && half >= pt_.y)
+				{
+					if(pair.first->GetInterface(DUI_CTR_GROUPHEADER)) //Group aceptor
+					{
+						mii_.dst = pair.first;
+						mii_.nLinePos = -1;
+						mii_.bGroup = 1;
+						mii_.gp_dst = (CContainerUI*)pair.first->GetParent();
+						return true;
+					}
+					if(pairNeighbor.second == pair.first)
+					{
+						break;
+					}
+					mii_.nLinePos = pair.second.rcFit.top - 1;
+					mii_.dst = pair.first;
+					mii_.gp_dst = pLayout;
+					mii_.bTop = 1;
+					return true;
+				}
+			}while(false);
+			mii_.Clear();
 			return false;
 		}
 	private:
@@ -187,8 +284,6 @@ namespace DirectUI
 		:m_itemInset(CRect()),m_itemHeight(40),m_defaultHeaderHeight(40),
 		m_bExpand(0),m_bButtonDown(false)
 	{
-
-
 	}
 
 	CGroupUI::~CGroupUI()
@@ -311,24 +406,6 @@ namespace DirectUI
 			}
 		}
 
-		return false;
-	}
-
-	bool CGroupUI::RemoveNotDestroy(CControlUI * pControl)
-	{
-		if (pControl == NULL) return false;
-		for (int it = 0; it < m_items.GetSize(); it++)
-		{
-			if (static_cast<CControlUI*>(m_items[it]) == pControl)
-			{
-				NeedUpdate();
-				if (m_LayerInfo.get())
-				{
-					m_LayerInfo->mapControl.erase(pControl);
-				}
-				return m_items.Remove(it);
-			}
-		}
 		return false;
 	}
 
@@ -645,6 +722,7 @@ namespace DirectUI
 	{
 		m_LayerInfo = std::make_shared<_tagLayerInfo>();
 		m_LayerInfo->pLayout = this;
+		m_miInfo.pSelControl = &m_MapSelControl;
 		ptLastMouse.x = ptLastMouse.y = 0;
 		::ZeroMemory(&m_rcNewPos, sizeof(m_rcNewPos));
 	}
@@ -671,7 +749,8 @@ namespace DirectUI
 			this->NeedParentUpdate();
 			break;
 		case LayerItemDrag:
-			MakeCursorImage(m_pManager->GetPaintDC(),event_->pSender->GetPos(),event_->ptMouse);
+			MakeCursorImage(m_pManager->GetPaintDC(),GetFitLayoutRc(event_->pSender->GetPos()),event_->ptMouse);
+			m_miInfo.src = event_->pSender;
 			m_hCursor.ptMove = event_->ptMouse;
 			m_hCursor.bDrag = 1;
 			break;
@@ -690,7 +769,7 @@ namespace DirectUI
 				//if(m_hCursor.hCursor)
 				//	::SetCursor(m_hCursor.hCursor);
 				//else
-					::SetCursor(::LoadCursor(NULL,IDC_ARROW));
+				::SetCursor(::LoadCursor(NULL,IDC_ARROW));
 				Invalidate();
 			}
 			break;
@@ -704,14 +783,14 @@ namespace DirectUI
 			{
 				(*iter)();
 			}
-			m_miInfo.nLinePos = 0;
+			MoveItem();
 			Invalidate();
 			break;
 		case LayerItemSelect:
 			//DUI__Trace(L"name of control = %s\n",event_->pSender->GetName().GetData());
-			m_pSelControl.clear();
-			m_pSelControl[event_->pSender] = event_->pSender;
-			
+			m_MapSelControl.clear();
+			m_MapSelControl[event_->pSender] = event_->pSender;
+
 			Invalidate();
 			break;
 		}
@@ -865,24 +944,6 @@ namespace DirectUI
 		return false;
 	}
 
-	bool CLayerLayoutUI::RemoveNotDestroy(CControlUI * pControl)
-	{
-		if (pControl == NULL) return false;
-		for (int it = 0; it < m_items.GetSize(); it++)
-		{
-			if (static_cast<CControlUI*>(m_items[it]) == pControl)
-			{
-				NeedUpdate();
-				if (m_LayerInfo.get())
-				{
-					m_LayerInfo->mapControl.erase(pControl);
-				}
-				return m_items.Remove(it);
-			}
-		}
-		return false;
-	}
-
 	void CLayerLayoutUI::RemoveAll()
 	{
 	}
@@ -967,7 +1028,7 @@ namespace DirectUI
 		{
 			//int index = 0;
 			//CControlUI* pControl = PtHitControl(event_.ptMouse,index);
-			//if(pControl && pControl != m_pSelControl)
+			//if(pControl && pControl != m_MapSelControl)
 			//{
 			//	if(m_pHotControl) m_pHotControl->Invalidate();
 			//	m_pHotControl = pControl;
@@ -1100,14 +1161,17 @@ namespace DirectUI
 		if(m_LayerInfo.get())
 		{
 			//paint selected layer or group
-			if(m_LayerInfo->dwItemSelectedBkColor && m_pSelControl.size())
+			if(m_LayerInfo->dwItemSelectedBkColor && m_MapSelControl.size())
 			{
-				RECT rcItem = m_pSelControl.begin()->first->GetPos();
-				int offsetl = max(m_nBorderSize, m_rcInset.left);
-				int offsetr = max(m_nBorderSize, m_rcInset.right);
-				rcItem.left = m_rcItem.left + offsetl;
-				rcItem.right = m_rcItem.right - offsetr;
-				CRenderEngine::DrawColor(hDC, rcItem, GetAdjustColor(m_LayerInfo->dwItemSelectedBkColor));
+				for(MapSelIt iter = m_MapSelControl.begin(); iter != m_MapSelControl.end(); ++iter)
+				{
+					RECT rcItem = iter->first->GetPos();
+					int offsetl = max(m_nBorderSize, m_rcInset.left);
+					int offsetr = max(m_nBorderSize, m_rcInset.right);
+					rcItem.left = m_rcItem.left + offsetl;
+					rcItem.right = m_rcItem.right - offsetr;
+					CRenderEngine::DrawColor(hDC, rcItem, GetAdjustColor(m_LayerInfo->dwItemSelectedBkColor));
+				}
 			}
 			if(m_LayerInfo->dwItemHotBkColor && m_pHotControl != NULL)
 			{
@@ -1128,21 +1192,27 @@ namespace DirectUI
 		if(m_LayerInfo.get())
 		{
 			//paint selected layer or group
-			if(!m_LayerInfo->sItemSelectedImage.IsEmpty() && m_pSelControl.size())
+			if(!m_LayerInfo->sItemSelectedImage.IsEmpty() && m_MapSelControl.size())
 			{
-				RECT rcItem = m_pSelControl.begin()->first->GetPos();
-				int offsetl = max(m_nBorderSize, m_rcInset.left);
-				int offsetr = max(m_nBorderSize, m_rcInset.right);
-				rcItem.left = m_rcItem.left + offsetl;
-				rcItem.right = m_rcItem.right - offsetr;
-				if (!DrawImage(hDC, rcItem, (LPCTSTR)m_LayerInfo->sItemSelectedImage))
-					m_LayerInfo->sItemSelectedImage.Empty();
+				for(MapSelIt iter = m_MapSelControl.begin(); iter != m_MapSelControl.end(); ++iter)
+				{
+					RECT rcItem = iter->first->GetPos();
+					int offsetl = max(m_nBorderSize, m_rcInset.left);
+					int offsetr = max(m_nBorderSize, m_rcInset.right);
+					rcItem.left = m_rcItem.left + offsetl;
+					rcItem.right = m_rcItem.right - offsetr;
+					if (!DrawImage(hDC, rcItem, (LPCTSTR)m_LayerInfo->sItemSelectedImage))
+					{
+						m_LayerInfo->sItemSelectedImage.Empty();
+						break;
+					}
+				}
 			}
 			if(!m_LayerInfo->sItemHotImage.IsEmpty() && m_pHotControl != NULL)
 			{
-			RECT rcItem = m_pHotControl->GetPos();
-			if (!DrawImage(hDC, rcItem, (LPCTSTR)m_LayerInfo->sItemHotImage))
-				m_LayerInfo->sItemHotImage.Empty();
+				RECT rcItem = m_pHotControl->GetPos();
+				if (!DrawImage(hDC, rcItem, (LPCTSTR)m_LayerInfo->sItemHotImage))
+					m_LayerInfo->sItemHotImage.Empty();
 			}
 		}
 
@@ -1169,20 +1239,21 @@ namespace DirectUI
 		{
 			Pen pen(Color(m_LayerInfo->dwItemMoveColor));
 			CRect rcLine = m_rcItem;
-			if (m_miInfo.gp_dst)
+			if (m_miInfo.bGroup)
 			{
-				rcLine.top = m_miInfo.gp_dst->m_rcItem.top;
-				rcLine.bottom = m_miInfo.gp_dst->m_rcItem.bottom;
+				CRect rc = GetFitLayoutRc(m_miInfo.dst->GetPos());
+				rcLine.top = rc.top;
+				rcLine.bottom = rc.bottom;
 			}
 			else
 			{
 				rcLine.top = m_miInfo.nLinePos - 1;
 				rcLine.bottom = m_miInfo.nLinePos + 1;
 			}
-			g.DrawLine(&pen, Point(rcLine.left, rcLine.top), Point(rcLine.left, rcLine.bottom));
-			g.DrawLine(&pen, Point(rcLine.left, rcLine.top), Point(rcLine.right, rcLine.top));
-			g.DrawLine(&pen, Point(rcLine.left, rcLine.bottom), Point(rcLine.right, rcLine.bottom));
-			g.DrawLine(&pen, Point(rcLine.right, rcLine.top), Point(rcLine.right, rcLine.bottom));
+			g.DrawLine(&pen, Point(rcLine.left+1, rcLine.top), Point(rcLine.left+1, rcLine.bottom));
+			g.DrawLine(&pen, Point(rcLine.left+1, rcLine.top), Point(rcLine.right-1, rcLine.top));
+			g.DrawLine(&pen, Point(rcLine.left+1, rcLine.bottom), Point(rcLine.right-1, rcLine.bottom));
+			g.DrawLine(&pen, Point(rcLine.right-1, rcLine.top), Point(rcLine.right-1, rcLine.bottom));
 		}
 	}
 
@@ -1211,9 +1282,9 @@ namespace DirectUI
 		//	return false;
 
 		//m_iCurSel = nIndex;
-		//if(m_pSelControl) m_pSelControl->Invalidate();
-		//m_pSelControl = pControl;
-		//m_pSelControl->Invalidate();
+		//if(m_MapSelControl) m_MapSelControl->Invalidate();
+		//m_MapSelControl = pControl;
+		//m_MapSelControl->Invalidate();
 		//EnsureVisible(m_iCurSel);
 
 		//if (bTakeFocus)
@@ -1381,7 +1452,7 @@ namespace DirectUI
 
 			Rect rc(0, 0, rcItem.GetWidth(),rcItem.GetHeight());
 			g.DrawImage(&bitmap, rc, 0, 0, rcItem.GetWidth(), rcItem.GetHeight(), UnitPixel, &imageAtt);
-	
+
 			//{
 			//	ICONINFO ci = {0};
 			//	HCURSOR drawCur = ::GetCursor();
@@ -1427,9 +1498,50 @@ namespace DirectUI
 
 	void CLayerLayoutUI::MoveItem()
 	{
+		if(m_miInfo.dst)
+		{
+			ASSERT(m_miInfo.gp_dst);
+			CContainerUI* pLayout = nullptr;
+			CControlUI* pMove = nullptr;
+			for(MapSelIt iter = m_MapSelControl.begin(); iter != m_MapSelControl.end(); ++iter)
+			{
+				pMove = iter->first;
+				pLayout = GetParentLayout(pMove);
+				if(pLayout)
+				{
+					if(iter->first->GetInterface(DUI_CTR_GROUPHEADER))
+					{
+						// pLayout is GroupUI
+						pMove = pLayout;
+						pLayout = (CGroupUI*)GetParentLayout(pMove);
+					}
+					pLayout->RemoveNotDestroy(pMove);
+					if(m_miInfo.bGroup)
+					{
+						m_miInfo.gp_dst->Add(pMove);
+					}
+					else
+					{
+						int index = m_miInfo.gp_dst->GetItemIndex(m_miInfo.dst);
+						if(index == -1) continue;
+						if(m_miInfo.bTop)
+							m_miInfo.gp_dst->AddAt(pMove,index);
+						else
+							m_miInfo.gp_dst->AddAt(pMove,++index);
+					}
+				}
+			}
+			m_miInfo.gp_dst->NeedUpdate();
+		}
+		m_miInfo.Clear();
 	}
 
+	CRect CLayerLayoutUI::GetFitLayoutRc(CRect rcItem)
+	{
+		rcItem.left = m_rcItem.left;
+		rcItem.right = m_rcItem.right;
+		return rcItem;
+	}
+
+
 }//namespace DirectUI
-
-
-

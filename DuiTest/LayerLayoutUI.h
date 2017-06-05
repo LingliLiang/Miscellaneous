@@ -33,11 +33,24 @@ namespace DirectUI
 
 	typedef struct _tagMoveItemInfo
 	{
-		CControlUI* src;
-		CControlUI* dst;
-		CGroupUI* gp_dst;
+		std::map<CControlUI*,void*>* pSelControl;
+		CControlUI* src; //moving selected item
+		CControlUI* dst; //
+		CContainerUI* gp_dst;
+		//int gp_dst_pos;
+		BOOL bGroup;
+		BOOL bTop;
 		int nLinePos;
-		_tagMoveItemInfo() :src(0), dst(0), gp_dst(0), nLinePos(0) {}
+		_tagMoveItemInfo() :pSelControl(0), src(0),dst(0), gp_dst(0),
+			bGroup(0),bTop(0),nLinePos(0) {}
+		void Clear(){
+			//src = nullptr;
+			dst = nullptr;
+			gp_dst = nullptr;
+			bGroup = 0;
+			bTop = 0;
+			nLinePos = 0;
+		}
 	}MoveItemInfo;
 
 	typedef struct _tagLayerInfo
@@ -58,7 +71,7 @@ namespace DirectUI
 		MapCtl mapControl;
 		_tagLayerInfo()
 			:nLayerHeight(30),nGroupHeaderHeight(30),
-			dwItemMoveColor(0xFF803680),dwItemHotBkColor(0xFF6B9299),
+			dwItemMoveColor(0xFFffae00),dwItemHotBkColor(0xFF6B9299),
 			dwItemSelectedBkColor(0xFF258C9C),pLayout(0)
 		{}
 	} LayerInfo;
@@ -89,7 +102,7 @@ namespace DirectUI
 			void ShareInfo(CControlUI* pControl, std::shared_ptr<_tagLayerInfo>& info);
 			void CheckControl(CControlUI* pControl);
 		};
-	
+
 	}
 
 	class CLayerUI  : public CHorizontalLayoutUI, public Inter::IInterMessage
@@ -240,7 +253,7 @@ namespace DirectUI
 		virtual void PaintStatusImage(HDC hDC);
 		virtual void PaintText(HDC hDC);
 		virtual void PaintBorder(HDC hDC);
-		
+
 		virtual void PaintMoveItem(HDC hDC);
 
 		CControlUI* GetCurSel();
@@ -258,12 +271,14 @@ namespace DirectUI
 		bool RemoveNotDestroy(CControlUI* pControl);
 		void RemoveAll();
 
-		void MoveItem(int nSrcIndex, int nDesIndex);
 		void MoveItem();
 	protected:
+		void MoveItem(int nSrcIndex, int nDesIndex);
+
 		virtual CControlUI* PtHitControl(POINT ptMouse, int &nIndex);
 		virtual CControlUI* PtRoundControl(POINT ptMouse);
 		bool MakeCursorImage(HDC hDC, const CRect rcItem, const CPoint pt, int alpha = 200);
+		inline CRect GetFitLayoutRc(CRect rcItem);
 
 	protected:
 
@@ -287,11 +302,14 @@ namespace DirectUI
 				}
 			}
 		} m_hCursor;
-		
+
 		std::vector<std::function<void(void)>> m_funcDrop;
 		std::vector<std::function<void(void)>> m_funcSelect;
 
-		std::map<CControlUI*,void*> m_pSelControl;
+		typedef std::map<CControlUI*, void*> MapSel;
+		typedef std::map<CControlUI*, void*>::value_type MapSelVt;
+		typedef std::map<CControlUI*, void*>::iterator MapSelIt;
+		MapSel m_MapSelControl;
 		CControlUI* m_pHotControl;
 		bool m_bMultiSel;
 
@@ -299,9 +317,9 @@ namespace DirectUI
 
 		POINT ptLastMouse;
 		RECT m_rcNewPos;
-		
+
 		bool m_bVertical;
 		bool m_bEnsureVisible; //选中的时候是否移动位置
 	};
-	}
+}
 #endif // __LAYERLISTUI_H__
