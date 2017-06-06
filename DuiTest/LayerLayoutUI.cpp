@@ -3,7 +3,7 @@
 //#include <hash_set>
 
 #define UI(ctr) ctr##UI 
-const TCHAR*  DUI_CTR_LAYERLIST = _T("LayerList");
+const TCHAR*  DUI_CTR_LAYERLAYOUT = _T("LayerLayout");
 const TCHAR*  DUI_CTR_LAYERITEM = _T("Layer");
 const TCHAR*  DUI_CTR_GROUPITEM = _T("Group");
 const TCHAR*  DUI_CTR_GROUPHEADER= _T("GroupHeader");
@@ -189,8 +189,9 @@ namespace DirectUI
 	//CLayerUI
 
 	CLayerUI::CLayerUI()
+		:m_bButtonDown(false),
+		m_bDrag(false)
 	{
-
 	}
 
 	LPCTSTR CLayerUI::GetClass() const
@@ -229,12 +230,6 @@ namespace DirectUI
 		}
 		if (event_.Type == UIEVENT_BUTTONDOWN)
 		{
-			//SetExpand(!m_bExpand);
-			//Invalidate();
-			//this->NeedParentUpdate();
-			//Message(0,NeedLayoutUpdate);
-			event_.pSender = this;
-			Message(&event_,LayerItemDrag);
 			m_bButtonDown = true;
 			return;
 		}
@@ -242,6 +237,11 @@ namespace DirectUI
 		{
 			if(m_bButtonDown)
 			{
+				if(!m_bDrag){
+					m_bDrag = true;
+					event_.pSender = this;
+					Message(&event_,LayerItemDrag);
+				}
 				Message(&event_,LayerItemMove);
 			}
 			return;
@@ -249,9 +249,10 @@ namespace DirectUI
 		if (event_.Type == UIEVENT_BUTTONUP)
 		{
 			if(m_bButtonDown)
-			{
-				Message(&event_,LayerItemDrop);
 				m_bButtonDown = false;
+			if(m_bDrag){
+				m_bDrag = false;
+				Message(&event_,LayerItemDrop);
 			}
 			return;
 		}
@@ -281,8 +282,8 @@ namespace DirectUI
 	//CGroupUI
 
 	CGroupUI::CGroupUI()
-		:m_itemInset(CRect()),m_itemHeight(40),m_defaultHeaderHeight(40),
-		m_bExpand(0),m_bButtonDown(false)
+		:m_itemHeight(40),m_defaultHeaderHeight(40),
+		m_bExpand(0),m_bButtonDown(false),m_bDrag(false)
 	{
 	}
 
@@ -344,7 +345,7 @@ namespace DirectUI
 				cyFixed += sz.cy + pControl->GetPadding().top + pControl->GetPadding().bottom;
 				nEstimateNum++;
 			}
-			cyFixed += (nEstimateNum - 1) * m_iChildPadding;
+			cyFixed += (nEstimateNum) * m_iChildPadding; //with header count in
 			cyFixed += headerHeight;
 			m_cxyFixed.cy = (LONG)cyFixed + m_rcInset.top + m_rcInset.bottom;
 		}
@@ -429,37 +430,22 @@ namespace DirectUI
 		}
 		if (event_.Type == UIEVENT_SETFOCUS)
 		{
-			//::OutputDebugString(_T("UIEVENT_SETFOCUS--"));
-			//::OutputDebugString(this->GetText().GetData());
-			//::OutputDebugString(_T("\n"));
 		}
 		if (event_.Type == UIEVENT_KILLFOCUS)
 		{
-			//::OutputDebugString(_T("UIEVENT_KILLFOCUS--"));
-			//::OutputDebugString(this->GetText().GetData());
-			//::OutputDebugString(_T("\n"));
 		}
 		else if (event_.Type == UIEVENT_SETCURSOR)
 		{
-			::OutputDebugString(_T("UIEVENT_SETCURSOR--\n"));
 			//::SetCursor(::LoadCursor(NULL,IDC_IBEAM));
 		}
 		if (event_.Type == UIEVENT_MOUSEHOVER)
 		{
-			//::OutputDebugString(_T("UIEVENT_MOUSEHOVER--"));
-			//::OutputDebugString(this->GetText().GetData());
-			//::OutputDebugString(_T("\n"));
 		}
 		if (event_.Type == UIEVENT_BUTTONDOWN)
 		{
-			::OutputDebugString(_T("UIEVENT_BUTTONDOWN--"));
-			::OutputDebugString(this->GetText().GetData());
-			::OutputDebugString(_T("\n"));
-
 			if(event_.ptMouse.x < m_rcItem.left+30)
 			{
-				event_.pSender = m_header.get();
-				Message(&event_,LayerItemDrag);
+				m_bButtonDown = true;
 			}
 			else
 			{
@@ -468,7 +454,6 @@ namespace DirectUI
 				this->NeedParentUpdate();
 				Message(0,NeedLayoutUpdate);
 			}
-			m_bButtonDown = true;
 			return;
 		}
 		if (event_.Type == UIEVENT_DBLCLICK)
@@ -482,19 +467,22 @@ namespace DirectUI
 		{
 			if(m_bButtonDown)
 			{
+				if(!m_bDrag){
+					event_.pSender = m_header.get();
+					Message(&event_,LayerItemDrag);
+					m_bDrag = true;
+				}
 				Message(&event_,LayerItemMove);
 			}
 			return;
 		}
 		if (event_.Type == UIEVENT_BUTTONUP)
 		{
-			//::OutputDebugString(_T("UIEVENT_BUTTONUP--"));
-			//::OutputDebugString(this->GetText().GetData());
-			//::OutputDebugString(_T("\n"));
-			if(m_bButtonDown)
+			if(m_bButtonDown) m_bButtonDown = false;
+			if(m_bDrag)
 			{
 				Message(&event_,LayerItemDrop);
-				m_bButtonDown = false;
+				m_bDrag = false;
 			}
 			return;
 		}
@@ -507,15 +495,9 @@ namespace DirectUI
 		}
 		if (event_.Type == UIEVENT_MOUSEENTER)
 		{
-			//::OutputDebugString(_T("UIEVENT_MOUSEENTER--"));
-			//::OutputDebugString(this->GetText().GetData());
-			//::OutputDebugString(_T("\n"));
 		}
 		if (event_.Type == UIEVENT_MOUSELEAVE)
 		{
-			//::OutputDebugString(_T("UIEVENT_MOUSELEAVE--"));
-			//::OutputDebugString(this->GetText().GetData());
-			//::OutputDebugString(_T("\n"));
 		}
 		CContainerUI::DoEvent(event_);
 	}
@@ -541,17 +523,6 @@ namespace DirectUI
 		else if(_tcscmp(pstrName,_T("height"))==0)
 		{
 			return ; //auto height
-		}
-		else if (_tcscmp(pstrName, _T("iteminset")) == 0)
-		{
-			RECT rcInset = { 0 };
-			LPTSTR pstr = NULL;
-			rcInset.left = _tcstol(pstrValue, &pstr, 10);  ASSERT(pstr);    
-			rcInset.top = _tcstol(pstr + 1, &pstr, 10);    ASSERT(pstr);    
-			rcInset.right = _tcstol(pstr + 1, &pstr, 10);  ASSERT(pstr);    
-			rcInset.bottom = _tcstol(pstr + 1, &pstr, 10); ASSERT(pstr);    
-			SetItemInset(rcInset);
-			SetItemAttribute(pstrName,pstrValue);
 		}
 		__super::SetAttribute(pstrName, pstrValue);
 	}
@@ -617,7 +588,10 @@ namespace DirectUI
 			CRect rcCtrl = CRect( iPosX + rcPadding.left, iPosY + rcPadding.top, iPosX + rcPadding.left + sz.cx, iPosY + sz.cy + rcPadding.top + rcPadding.bottom );
 			if( it2 )
 			{
-				rcCtrl.Deflate(&m_itemInset);
+				if(m_LayerInfo.get())
+				{
+					rcCtrl.Deflate(&m_LayerInfo->rcLayerInset);
+				}
 				if(!m_bExpand)
 					rcCtrl.Empty();
 			}
@@ -628,16 +602,6 @@ namespace DirectUI
 			cyNeeded += sz.cy + rcPadding.top + rcPadding.bottom;
 			szRemaining.cy -= sz.cy + m_iChildPadding + rcPadding.bottom;
 		}
-	}
-
-	void CGroupUI::SetItemInset(RECT rc)
-	{
-		m_itemInset = rc;
-	}
-
-	CRect CGroupUI::GetItemInset()
-	{
-		return m_itemInset;
 	}
 
 	bool CGroupUI::SetExpand(bool bExpand)
@@ -729,12 +693,12 @@ namespace DirectUI
 
 	LPCTSTR CLayerLayoutUI::GetClass() const
 	{
-		return _T("LayerListUI");
+		return _T("LayerLayoutUI");
 	}
 
 	LPVOID CLayerLayoutUI::GetInterface(LPCTSTR pstrName)
 	{
-		if( _tcscmp(pstrName, DUI_CTR_LAYERLIST) == 0 ) return static_cast<CLayerLayoutUI*>(this);
+		if( _tcscmp(pstrName, DUI_CTR_LAYERLAYOUT) == 0 ) return static_cast<CLayerLayoutUI*>(this);
 		if( _tcscmp(pstrName, INTERFACE_INTERMSG) == 0 ) return static_cast<IInterMessage*>(this);
 		return CContainerUI::GetInterface(pstrName);
 	}
@@ -946,32 +910,119 @@ namespace DirectUI
 
 	void CLayerLayoutUI::RemoveAll()
 	{
+		m_MapSelControl.clear();
+		m_LayerInfo->mapControl.clear();
+		__super::RemoveAll();
 	}
 
-	/*void CLayerLayoutUI::SetSelImage(LPCTSTR pstrImage)
+	//--------------------------------------------------------------------------------------------
+	void CLayerLayoutUI::SetLayerSelImage(LPCTSTR pstrImage)
 	{
-	m_strSelImg = pstrImage;
+		if(m_LayerInfo.get())
+			m_LayerInfo->sItemSelectedImage = pstrImage;
 	}
 
-	CUIString CLayerLayoutUI::GetSelImage()
+	CUIString CLayerLayoutUI::GetLayerSelImage()
 	{
-	return m_strSelImg;
+		if(!m_LayerInfo.get()) return CUIString();
+		return CUIString(m_LayerInfo->sItemSelectedImage);
 	}
 
-	void CLayerLayoutUI::SetHotImage(LPCTSTR pstrImage)
+	void CLayerLayoutUI::SetLayerHotImage(LPCTSTR pstrImage)
 	{
-	m_strHotImg = pstrImage;
+		if(m_LayerInfo.get())
+			m_LayerInfo->sItemHotImage = pstrImage;
 	}
 
-	CUIString CLayerLayoutUI::GetHotImage()
+	CUIString CLayerLayoutUI::GetLayerHotImage()
 	{
-	return m_strHotImg;
-	}*/
+		if(!m_LayerInfo.get()) return CUIString();
+		return CUIString(m_LayerInfo->sItemHotImage);
+	}
+
+	void CLayerLayoutUI::SetMoveLineColor(DWORD color)
+	{
+		if (!m_LayerInfo.get() || m_LayerInfo->dwItemMoveColor == color) return;
+		m_LayerInfo->dwItemMoveColor = color;
+	}
+
+	DWORD CLayerLayoutUI::GetMoveLineColor()
+	{
+		if(m_LayerInfo.get())
+			return m_LayerInfo->dwItemMoveColor;
+		return 0;
+	}
+
+	void CLayerLayoutUI::SetLayerSelColor(DWORD color)
+	{
+		if (!m_LayerInfo.get() || m_LayerInfo->dwItemSelectedBkColor == color) return;
+		m_LayerInfo->dwItemSelectedBkColor = color;
+	}
+
+	DWORD CLayerLayoutUI::GetLayerSelColor()
+	{
+		if(m_LayerInfo.get())
+			return m_LayerInfo->dwItemSelectedBkColor;
+		return 0;
+	}
+
+	void CLayerLayoutUI::SetLayerHotColor(DWORD color)
+	{
+		if (!m_LayerInfo.get() || m_LayerInfo->dwItemHotBkColor == color) return;
+		m_LayerInfo->dwItemHotBkColor = color;
+	}
+
+	DWORD CLayerLayoutUI::GetLayerHotColor()
+	{
+		if(m_LayerInfo.get())
+			return m_LayerInfo->dwItemHotBkColor;
+		return 0;
+	}
+
+	void CLayerLayoutUI::SetLayerDefaultHeight(int nSize)
+	{
+		if (!m_LayerInfo.get() || m_LayerInfo->nLayerHeight == nSize) return;
+		m_LayerInfo->nLayerHeight = nSize;
+	}
+
+	size_t CLayerLayoutUI::GetLayerDefaultHeight()
+	{
+		if(!m_LayerInfo.get()) return 0;
+		return m_LayerInfo->nLayerHeight;
+	}
+
+	void CLayerLayoutUI::SetGroupDefaultHeight(int nSize)
+	{
+		if (!m_LayerInfo.get() || m_LayerInfo->nGroupHeaderHeight == nSize) return;
+		m_LayerInfo->nGroupHeaderHeight = nSize;
+	}
+
+	size_t CLayerLayoutUI::GetGroupDefaultHeight()
+	{
+		if(!m_LayerInfo.get()) return 0;
+		return m_LayerInfo->nGroupHeaderHeight;
+	}
+
+	void CLayerLayoutUI::SetLayerInset(RECT rc)
+	{
+		if(m_LayerInfo.get())
+			m_LayerInfo->rcLayerInset = rc;
+	}
+
+	CRect CLayerLayoutUI::GetLayerInset()
+	{
+		if(!m_LayerInfo.get()) return CRect();
+		return m_LayerInfo->rcLayerInset;
+	}
+
+	//--------------------------------------------------------------------------------------------
 
 	void CLayerLayoutUI::SetAttribute(LPCTSTR pstrName, LPCTSTR pstrValue)
 	{
 		CContainerUI::SetAttribute(pstrName, pstrValue);
 		if( _tcscmp(pstrName, _T("sepwidth")) == 0 ) _ttoi(pstrValue);
+		else if (_tcscmp(pstrName, _T("layerheight")) == 0) SetLayerDefaultHeight(_ttoi(pstrValue));
+		else if (_tcscmp(pstrName, _T("groupheight")) == 0) SetGroupDefaultHeight(_ttoi(pstrValue));
 		if( _tcscmp(pstrName, _T("hscrollbar")) == 0 && _tcscmp(pstrValue, _T("true")) == 0)
 		{
 			//m_pHorizontalScrollBar->SetVisible(false);
@@ -982,10 +1033,44 @@ namespace DirectUI
 		}
 		else if( _tcscmp(pstrName, _T("vermode")) == 0 )
 			(_tcscmp(pstrValue, _T("true")) == 0);
-		//else if( _tcscmp(pstrName, _T("selimage")) == 0 )
-		//	SetSelImage(pstrValue);
-		//else if( _tcscmp(pstrName, _T("hotimage")) == 0 )
-		//	SetHotImage(pstrValue);
+		else if( _tcscmp(pstrName, _T("layerselimage")) == 0 )
+			SetLayerSelImage(pstrValue);
+		else if( _tcscmp(pstrName, _T("layerhotimage")) == 0 )
+			SetLayerHotImage(pstrValue);
+		else if (_tcscmp(pstrName, _T("layerselcolor")) == 0)
+		{
+			while( *pstrValue > _T('\0') && *pstrValue <= _T(' ') ) pstrValue = ::CharNext(pstrValue);
+			if (*pstrValue == _T('#')) pstrValue = ::CharNext(pstrValue);
+			LPTSTR pstr = NULL;
+			DWORD clrColor = _tcstoul(pstrValue, &pstr, 16);
+			SetLayerSelColor(clrColor);
+		}
+		else if (_tcscmp(pstrName, _T("layerhotcolor")) == 0)
+		{
+			while( *pstrValue > _T('\0') && *pstrValue <= _T(' ') ) pstrValue = ::CharNext(pstrValue);
+			if (*pstrValue == _T('#')) pstrValue = ::CharNext(pstrValue);
+			LPTSTR pstr = NULL;
+			DWORD clrColor = _tcstoul(pstrValue, &pstr, 16);
+			SetLayerHotColor(clrColor);
+		}
+		else if (_tcscmp(pstrName, _T("movelinecolor")) == 0)
+		{
+			while( *pstrValue > _T('\0') && *pstrValue <= _T(' ') ) pstrValue = ::CharNext(pstrValue);
+			if (*pstrValue == _T('#')) pstrValue = ::CharNext(pstrValue);
+			LPTSTR pstr = NULL;
+			DWORD clrColor = _tcstoul(pstrValue, &pstr, 16);
+			SetMoveLineColor(clrColor);
+		}
+		else if (_tcscmp(pstrName, _T("layerinset")) == 0)
+		{
+			RECT rcInset = { 0 };
+			LPTSTR pstr = NULL;
+			rcInset.left = _tcstol(pstrValue, &pstr, 10);  ASSERT(pstr);    
+			rcInset.top = _tcstol(pstr + 1, &pstr, 10);    ASSERT(pstr);    
+			rcInset.right = _tcstol(pstr + 1, &pstr, 10);  ASSERT(pstr);    
+			rcInset.bottom = _tcstol(pstr + 1, &pstr, 10); ASSERT(pstr);    
+			SetLayerInset(rcInset);
+		}
 		else
 		{
 			CUIString strName = pstrName;

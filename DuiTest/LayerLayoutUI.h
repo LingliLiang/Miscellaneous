@@ -7,7 +7,7 @@
 #include <functional>
 #include <map>
 
-extern const TCHAR* DUI_CTR_LAYERLIST;
+extern const TCHAR* DUI_CTR_LAYERLAYOUT;
 extern const TCHAR* DUI_CTR_LAYERITEM;
 extern const TCHAR* DUI_CTR_GROUPITEM;
 extern const TCHAR* DUI_CTR_GROUPHEADER;
@@ -124,6 +124,7 @@ namespace DirectUI
 		virtual void Message(TEventUI* event_, Inter::InterNotifyMsg what);
 
 		bool m_bButtonDown;
+		bool m_bDrag;
 	};
 
 	class CGroupHeaderUI : public CHorizontalLayoutUI
@@ -157,8 +158,6 @@ namespace DirectUI
 		void SetItemAttribute(LPCTSTR pstrName, LPCTSTR pstrValue);
 		void SetPos(RECT rc);
 
-		void SetItemInset(RECT rc);
-		CRect GetItemInset();
 		bool SetExpand(bool bExpand);
 		bool GetExpand();
 		size_t SetHeaderHeight(size_t nHeight);
@@ -174,12 +173,11 @@ namespace DirectUI
 	protected:
 		virtual void Message(TEventUI* event_, Inter::InterNotifyMsg what);
 	private:
-
-		CRect m_itemInset;
 		size_t m_itemHeight; //default item height
 		size_t m_defaultHeaderHeight; 
 		size_t m_bExpand;
 		bool m_bButtonDown;
+		bool m_bDrag;
 		std::unique_ptr<CGroupHeaderUI> m_header;
 	};
 
@@ -195,7 +193,7 @@ namespace DirectUI
 
 		static CControlUI* CreateControl(LPCTSTR pstrClass)
 		{
-			if(_tcsicmp(pstrClass, DUI_CTR_LAYERLIST) == 0)
+			if(_tcsicmp(pstrClass, DUI_CTR_LAYERLAYOUT) == 0)
 			{
 				return new CLayerLayoutUI;
 			}
@@ -238,10 +236,27 @@ namespace DirectUI
 
 		void SetVerticalMode(bool bVertical);
 		bool GetVerticalMode() const;
-		void SetSelImage(LPCTSTR pstrImage);
-		CUIString GetSelImage();
-		void SetHotImage(LPCTSTR pstrImage);
-		CUIString GetHotImage();
+
+		//also effect to group
+		void SetLayerSelImage(LPCTSTR pstrImage);
+		CUIString GetLayerSelImage();
+		void SetLayerHotImage(LPCTSTR pstrImage);
+		CUIString GetLayerHotImage();
+
+		void SetMoveLineColor(DWORD color);
+		DWORD GetMoveLineColor();
+		void SetLayerSelColor(DWORD color);
+		DWORD GetLayerSelColor();
+		void SetLayerHotColor(DWORD color);
+		DWORD GetLayerHotColor();
+
+		void SetLayerDefaultHeight(int nSize);
+		size_t GetLayerDefaultHeight();
+		void SetGroupDefaultHeight(int nSize);
+		size_t GetGroupDefaultHeight();
+
+		void SetLayerInset(RECT rc);
+		CRect GetLayerInset();
 
 		void SetAttribute(LPCTSTR pstrName, LPCTSTR pstrValue);
 		void SetItemAttribute(LPCTSTR pstrName, LPCTSTR pstrValue);
@@ -321,5 +336,21 @@ namespace DirectUI
 		bool m_bVertical;
 		bool m_bEnsureVisible; //选中的时候是否移动位置
 	};
+
+
+	class CLayerLayoutCallback
+	{
+	public:
+		virtual CControlUI* CreateControl(LPCTSTR pstrClass)
+		{
+			return CLayerLayoutUI::CreateControl(pstrClass);
+		}
+	};
+
+
+	template <typename TSrc, typename TDst> TDst* CastCallback(TSrc* t_src)
+	{
+		return reinterpret_cast<TDst*>(t_src);
+	}
 }
 #endif // __LAYERLISTUI_H__
