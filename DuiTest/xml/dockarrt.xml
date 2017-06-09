@@ -1,0 +1,147 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<Control>  
+  <!--可通过默认属性来设置 CDockTitle-->
+  <Default name="DockTitleText" value="selectedtextcolor=&quot;#FFFF0000&quot; pushedtextcolor=&quot;#FF00FF00&quot; hottextcolor=&quot;#FF0000FF&quot; " />
+ 
+  <DockTitleText parent="CLabelUI">
+    <!--Attribute align disabled-->
+    <Attribute name="verwesttext" default="true" type="bool" comment="垂直时字体的朝向，true == west"/>
+    <Attribute name="hottextcolor" default="0x00000000" type="DWORD" comment="鼠标悬浮字体颜色，0表示不使用此颜色,如(0xFFFF0000)"/>
+    <Attribute name="pushedtextcolor" default="0x00000000" type="DWORD" comment="鼠标按下字体颜色，0表示不使用此颜色,如(0xFFFF0000)"/>
+    <Attribute name="focusedtextcolor" default="0x00000000" type="DWORD" comment="获得焦点字体颜色，0表示不使用此颜色,如(0xFFFF0000)"/>
+    <Attribute name="selectedtextcolor" default="0x00000000" type="DWORD" comment="选中状态字体颜色，0表示不使用此颜色,如(0xFFFF0000)"/>
+  </DockTitleText>
+  
+  <DockTitleItem parent="CContainerUI" itemchild="CLabelUI DockTitleText">
+    <!--DockTitleItem为自适应横竖布局和字体-->
+    <!--子项 CLabelUI 为图标，DockTitleText为自适应标签-->
+    <!--DockTitleItem DockTitleText属性 应用到所有旗下DockTitleText， 即添加item在属性前即可改变DockTitleText属性-->
+    <!--其他属性查看 CDockTitle-->
+    <Attribute name="moveable" default="true" type="BOOL" comment="是否可移动位置"/>
+    <Attribute name="floatout" default="true" type="BOOL" comment="是否弹出浮动窗口"/>
+    <!--Icon 图标(CLabelUI)属性,默认为不显示. 添加icon在属性之前即可设置其属性-->
+x    <!--Close 按钮(CButtonUI)属性,默认为不显示. 添加cls在属性之前即可设置其属性-->
+    <Attribute name="listItemtattr" value="" type="STING" comment="DockTitle的列表弹窗中的列表项的常用属性，参考option控件" 如listoptattr="visible=&quot;true&quot; bkcolor=&quot;#FF00FF00&quot; "/>
+  </DockTitleItem>
+  
+  <DockTitle parent="CContainerUI" itemchild="CDockTitleItemUI">
+    <!--DockTitleItem默认自动添加滚动条，多出的DockTitleItem可使用鼠标滚轮查看，或者使用listopt显示列表-->
+    <Attribute name="heighttitle" default="0" type="INT" comment="控件预设的宽度/高度，如(100),可受DockPaneltitlefixed的影响"/>
+    <Attribute name="mainlayout" value="horizontal/Vertical" type="STRING" comment="垂直横向设置，默认为horizontal，调用可动态重定向"/>
+
+    <!--DockTitleItem的大小没有设置宽高时是相等平铺到DockTitle，设置宽高后固定宽高，设置calcsize可重新计算宽适应TitleText大小-->
+    <Attribute name="calcsize" value="false" type="bool" comment="calculate DockTitleItem的大小并适应"/>
+    <Attribute name="miniattr" value="" type="STING" comment="位于DockTitle后部 ，功能将DockPanel最小标题化，默认不显示" 如miniattr="visible=&quot;true&quot; bkcolor=&quot;#FF00FF00&quot; "/>
+ x    <Attribute name="listitemview" value="true" type="bool" comment="true以list形式显示多出的标题项,false以增减按钮的形式"/>
+    <Attribute name="listoptattr" value="" type="STING" comment="位于DockTitle后部 ，功能显示整个DockTitleItem的列表，默认不显示" 如listoptattr="visible=&quot;true&quot; bkcolor=&quot;#FF00FF00&quot; "/>
+
+    <Items>
+      <!--CDockTitle Items属性 应用到所有旗下Item， 即添加item在属性前即可改变所有CDockTitleItemUI属性-->
+      <Attribute name="itemnormalimage" default="" type="STRING" comment="普通状态图片"/>
+      <Attribute name="itemhotimage" default="" type="STRING" comment="鼠标悬浮的状态图片"/>
+      <Attribute name="itempushedimage" default="" type="STRING" comment="鼠标按下的状态图片"/>
+      <Attribute name="itemfocusedimage" default="" type="STRING" comment="获得焦点时的状态图片"/>
+      <Attribute name="itemdisabledimage" default="" type="STRING" comment="禁用的状态图片"/>
+      <Attribute name="itemselectedimage" default="" type="STRING" comment="选中的状态图片"/>
+      <Attribute name="itemselectedhotimage" default="" type="STRING" comment="鼠标悬浮状态图片"/>
+      <Attribute name="itemselectedpushedimage" default="" type="STRING" comment="鼠标按下状态图片"/>
+
+      <Attribute name="itemforeimage" default="" type="STRING" comment="前景图片"/>
+      <Attribute name="itemhotforeimage" default="" type="STRING" comment="前景悬浮图片"/>
+      <Attribute name="itempushedforeimage" default="" type="STRING" comment="前景按下图片"/>
+
+      <Attribute name="itemhottextcolor" default="0x00000000" type="DWORD" comment="鼠标悬浮字体颜色，0表示不使用此颜色,如(0xFFFF0000)"/>
+      <Attribute name="itempushedtextcolor" default="0x00000000" type="DWORD" comment="鼠标按下字体颜色，0表示不使用此颜色,如(0xFFFF0000)"/>
+      <Attribute name="itemfocusedtextcolor" default="0x00000000" type="DWORD" comment="获得焦点字体颜色，0表示不使用此颜色,如(0xFFFF0000)"/>
+      <Attribute name="itemselectedtextcolor" default="0x00000000" type="DWORD" comment="选中状态字体颜色，0表示不使用此颜色,如(0xFFFF0000)"/>
+
+      <Attribute name="itemhotbkcolor" default="0x00000000" type="DWORD" comment="选中状态字体颜色，0表示不使用此颜色,如(0xFFFF0000)"/>
+      <Attribute name="itemselectedbkcolor" default="0x00000000" type="DWORD" comment="选中状态字体颜色，0表示不使用此颜色,如(0xFFFF0000)"/>
+    </Items>
+  </DockTitle>
+  
+  <Docker parent="CContainerUI">
+    <!--放置内容的容器-->
+    <Attribute name="usexml" value="false" type="bool" comment="使用xml资源作为内容,配合xmlfile使用
+               有自定义资源的UI时必须指定DockPanel的parentWindowUI以使用callback来制定UI.
+               必须在xmlfile之前设置"/>
+    <Attribute name="xmlfile" value="" type="STRING" comment="制定或普通的xml文件.配合usexml使用"/>
+    <Attribute name="xmltilteimg" value="" type="STRING" comment="制定或普通的浮动窗口标题栏.配合DockPanel窗口xml使用,替换name为'docker_title'控件的背景图片"/>
+    <Attribute name="closeup" value="false" type="bool" comment="浮动窗口按关闭按钮时,不停靠到原来的直接清理资源关闭"/>
+    <Attribute name="group" value="" type="STRING" comment="docker的标识,判定停靠的关键"/>
+    <Attribute name="text" value="" type="STRING" comment="docker的标题,会显示到浮动出来的标题栏(自定义xml除外)"/>
+    <Attribute name="addwinstyle" default="0x0,0x0" type="ULSIZE" comment="添加DockPanel制定的悬浮窗口样式{style,exstyle}" />
+    <Attribute name="subwinstyle" default="0x0,0x0" type="ULSIZE" comment="减去DockPanel制定的悬浮窗口样式{style,exstyle}" />
+    <Attribute name="ignoremaxmin" value="false" type="bool" comment="禁用悬浮窗口最大最小大化"/>
+    
+  </Docker>
+  
+  <DockPanel  parent="CContainerUI" itemchild="CDockTitleUI CDckerUI">
+    <!--DockPanel 添加title在属性前即可改变所有当下的CDockTitleUI属性-->
+    <!--DockPanel 添加doer在属性前即可改变所有当下的CDockerUI属性-->
+    <Attribute name="titlepos" value="N/S/W/E" type="bool" comment="标题的方向"/>
+    <Attribute name="titlefixed" value="40" type="INT" comment="影响DockTitle的heighttitle属性"/>
+x  <Attribute name="dockable" value="true" type="bool" comment="是否可以停靠Docker"/>
+    <Attribute name="winxml" value="***.xml" type="STRING" comment="使用xml窗口模板设置弹出窗口的样式,
+               不设置使用默认样式. 窗口可包含控件响应：
+               name=close ; type=CButtonUI => 关闭按钮,必要可执行直接关闭或关闭后停靠.
+               name=pin ; type=COptionUI  => 置顶窗口.
+               name=fullscr ; type=COptionUI  => 全屏窗口或恢复."/>
+    <Attribute name="winindex" value="x,x,x,x,....." type="Nan" comment="配合winxml使用,容器插入窗口的位置
+               例如: winindex=  0,1,0  ; 第一个0表示为name0位置,1表示为name2在name0的位置,最后一个为插入点在name2的位置
+               Window
+               VerticalLayout name=0
+                 HorizontalLayout name=1
+                 /HorizontalLayout
+                 HorizontalLayout name=2
+                 ////插入点
+                / HorizontalLayout
+               /VerticalLayout
+               Window
+                "/>
+    <Attribute name="winstyle" default="0x10cf0000,0x0" type="ULSIZE" comment="悬浮窗口样式{style,exstyle},16进制如
+          UI_WNDSTYLE_FRAME=0x10cf0000
+					UI_WNDSTYLE_CHILD=0x56000000
+					UI_WNDSTYLE_DIALOG=0x96c80000
+          以上全是由Common Window Styles合并组成如WS_OVERLAPPEDWINDOW
+          
+					UI_WNDSTYLE_EX_FRAME=0x100
+					UI_WNDSTYLE_EX_DIALOG=0x81
+          以上全是由Extended Window Styles合并组成如WS_EX_TOOLWINDOW|...
+          "/>
+    <Attribute name="unigroup" value="" type="STRING" comment="定义特殊的panel,只有拥有相同的group的dockerui才可以停靠,空为默认即接受所有docker"/>
+x    <Attribute name="restore" value="true" type="bool" comment="拓展变量,保留未来使用"/>
+    <Attribute name="floatcolor" default="0xff2D3E5B" type="DWORD" comment="悬浮合并时显示的颜色"/>
+
+  </DockPanel>
+
+  <!--前面有x表该属性不可使用,待继续拓展-->
+
+  <!--示例-->
+  <DockPanel name="dock_panel_"  width="822" bkcolor="#FF161616"
+             winstyle="0x10cf0000,0x0" winindex="2"  winxml="tab_layout\\docker_win.xml" titlefixed="33" 
+             titlepos="N" unigroup="dock_panel_" doergroup="dock_panel_">
+    <!--DockTitleItem 与 Docker 必须对应 -->
+    <DockTitle bkcolor="#FF3C3C3C" layoutinset="1,1,1,1" layoutchildpadding="-2" calcsize="false">
+      <DockTitleItem name="option_docker1" floatout="true" selected="true"  width="75" height="31" />
+     </DockTitle>
+    <Docker  text="docker1">
+      <Control name="docker1" bkcolor="#FF3C3C3C" />
+    </Docker>
+  </DockPanel>
+  <!--下面是制定窗口示例-->
+  <CustomWindow  caption="0,0,0,35" roundcorner="2,2" mininfo="826,342" size="826,342" sizebox="4,4,4,4">
+    <VerticalLayout inset="2,2,2,2"  bkcolor="#FF3C3C3C" roundcorner="0,0" bordersize="2" bordercolor="#FF202020">
+      <HorizontalLayout height="33" inset="12,0,0,0" bkcolor="#FF3F3F3F" >
+        <Label width="150" name="docker_title" textcolor="#FFC3C3C3" font="2" align="vleft" />
+        <Control />
+        <VerticalLayout width="24" inset="0,5,0,0">
+          <Button name="close" height="22" />
+        </VerticalLayout>
+        <Control width="4" />
+      </HorizontalLayout>
+      <Control height="2" bkcolor="#FF202020"/>
+    </VerticalLayout>
+  </CustomWindow>
+  
+</Control>

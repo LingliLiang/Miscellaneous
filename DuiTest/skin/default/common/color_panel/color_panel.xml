@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Window size="198,258" mininfo="198,258" maxinfo="198,258" caption="0,0,0,10" defaultfontcolor="#FFC5C5C5">
+	<Font name="微软雅黑" size="12" bold="false" italic="false" default="true"/>
+  <Font name="微软雅黑" size="16" bold="true" italic="false" />
+	<VerticalLayout inset="8,8,8,2"  bkcolor="#FF414141" bordersize="1" bordercolor="#FF181818" >
+    <HorizontalLayout height="30" >
+      <HorizontalLayout inset="0,2,0,4" width="24" >
+        <ColorChunk name="current_color" height="24" mouse="false" bordersize="1" bordercolor="#FF191919" bkcolor="#FFAAAAAA" />
+      </HorizontalLayout>
+      <Control width="6"></Control>
+      <HorizontalLayout height="26" width="122" inset="1,1,1,1" borderround="6,6" bordersize="2" bordercolor="#FF181818" bkcolor="#FF242424">
+        <Label width="24" height="24" text="#" align="center" font="1" borderround="4,4" bordersize="1" bordercolor="#FF545454" bkcolor="#FF656565" />
+        <Edit  name="value_edit" width="98" height="24" bkcolor="#FF121212" nativebkcolor="#FF121212" />
+      </HorizontalLayout>
+    </HorizontalLayout>
+    <HorizontalLayout height="152"  childpadding="10">
+      <HSVContainer name="hsv_color_container" inset="1,1,1,1" height="152" width="152"  bordersize="1" bordercolor="#FF191919" selecterimage="common\\color_panel\\selecter.png" selectersize="12,12"> 
+      </HSVContainer>
+        <Slider name="hue_slider" height="152" width="18" hor="false" min="0" max="360" bkimage="common\\color_panel\\hue_bk.png" thumbimage="common\\color_panel\\hue_thumb.png" thumbsize="18,3" />
+    </HorizontalLayout>
+    <Control height="4" />
+    <HorizontalLayout height="16" visible="true">
+    <Slider name="alpha_slider" height="12" width="152" hor="true" min="0" max="255" bkimage="common\\color_panel\\alpha_bk.png" foreimage="common\\color_panel\\alpha_fore.png" thumbimage="common\\color_panel\\alpha_thumb.png" thumbsize="12,12" />
+    </HorizontalLayout>
+      <TileLayout name="tl_color_block" childpadding="4" columns="8" >
+        <ColorChunk height="18" width="18" borderround="2,2" bordersize="1" bordercolor="#FF161616" bkcolor="#FF000000" />
+        <ColorChunk height="18" width="18" borderround="2,2" bordersize="1" bordercolor="#FF161616" bkcolor="#FF808080" />
+        <ColorChunk height="18" width="18" borderround="2,2" bordersize="1" bordercolor="#FF161616" bkcolor="#FF800000" />
+        <ColorChunk height="18" width="18" borderround="2,2" bordersize="1" bordercolor="#FF161616" bkcolor="#FFF7883A" />
+        <ColorChunk height="18" width="18" borderround="2,2" bordersize="1" bordercolor="#FF161616" bkcolor="#FF308430" />
+        <ColorChunk height="18" width="18" borderround="2,2" bordersize="1" bordercolor="#FF161616" bkcolor="#FF385AD2" />
+        <ColorChunk height="18" width="18" borderround="2,2" bordersize="1" bordercolor="#FF161616" bkcolor="#FF800080" />
+        <ColorChunk height="18" width="18" borderround="2,2" bordersize="1" bordercolor="#FF161616" bkcolor="#FF009999" />
+        
+        <ColorChunk height="18" width="18" borderround="2,2" bordersize="1" bordercolor="#FF161616" bkcolor="#FFFFFFFF" />
+        <ColorChunk height="18" width="18" borderround="2,2" bordersize="1" bordercolor="#FF161616" bkcolor="#FFC0C0C0" />
+        <ColorChunk height="18" width="18" borderround="2,2" bordersize="1" bordercolor="#FF161616" bkcolor="#FFFB3838" />
+        <ColorChunk height="18" width="18" borderround="2,2" bordersize="1" bordercolor="#FF161616" bkcolor="#FFFFFF00" />
+        <ColorChunk height="18" width="18" borderround="2,2" bordersize="1" bordercolor="#FF161616" bkcolor="#FF99CC00" />
+        <ColorChunk height="18" width="18" borderround="2,2" bordersize="1" bordercolor="#FF161616" bkcolor="#FF3894E4" />
+        <ColorChunk height="18" width="18" borderround="2,2" bordersize="1" bordercolor="#FF161616" bkcolor="#FFF31BF3" />
+        <ColorChunk height="18" width="18" borderround="2,2" bordersize="1" bordercolor="#FF161616" bkcolor="#FF16DCDC" />
+      </TileLayout>
+  </VerticalLayout>
+</Window>
