@@ -72,8 +72,8 @@ namespace DirectUI
 	LRESULT CControlWndUI::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 	{
 		LRESULT lRes = 0;
-		Slot_PreHandleMessage.Active(uMsg,wParam,lParam);
-		if(uMsg == MSG_HANDLED) return lRes;
+		Slot_PreHandleMessage.Active(uMsg,wParam,lParam, lRes);
+		if (lRes) return lRes;
 		switch (uMsg)
 		{
 		case WM_CREATE:			lRes = OnCreate( wParam, lParam); break;
@@ -146,22 +146,25 @@ namespace DirectUI
 
 	LRESULT CControlWndUI::OnLButtonDown(WPARAM wParam, LPARAM lParam)
 	{
-		POINT pt = {  (LONG)(GET_X_LPARAM(lParam) / 1), (LONG)(GET_Y_LPARAM(lParam) / 1) };
+		Slot_LBD.Active(GetPoint(lParam));
 		return 0;
 	}
 
 	LRESULT CControlWndUI::OnMouseMove(WPARAM wParam, LPARAM lParam)
 	{
+		Slot_MM.Active(GetPoint(lParam));
 		return 0;
 	}
 
 	LRESULT CControlWndUI::OnLButtonUp(WPARAM wParam, LPARAM lParam)
 	{
+		Slot_LBU.Active(GetPoint(lParam));
 		return 0;
 	}
 
 	LRESULT CControlWndUI::OnLButtonDBClick(WPARAM wParam, LPARAM lParam)
 	{
+		Slot_LDB.Active(GetPoint(lParam));
 		return 0;
 	}
 

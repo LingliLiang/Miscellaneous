@@ -2,40 +2,9 @@
 #define _CCONTROLWND_H_
 #include <vector>
 #include <functional>
+#include "FunctionSlot.hpp"
 namespace DirectUI
 {
-	template<
-		typename PM_1 = unsigned long,
-		typename PM_2 = unsigned long,
-		typename PM_3 = unsigned long>
-	class CFuncSlot
-	{
-	public:
-		typedef void FnType(PM_1,PM_2,PM_3);
-		template <typename O, typename OFnType>
-		void Plug(O* pthis, OFnType pFn, bool first = false)
-		{
-			std::function<FnType> insert;
-			if(first)
-				vecFuncs.insert(vecFuncs.begin(),insert);
-			else				
-				vecFuncs.push_back(insert);
-			*(vecFuncs.rbegin()) = std::bind(pFn,pthis,std::placeholders::_1,std::placeholders::_2,std::placeholders::_3);
-		}
-		void Empty()
-		{
-			vecFuncs.clear();
-		}
-		void Active(PM_1 p1, PM_2 p2 , PM_3 p3)
-		{
-			for(auto iter = vecFuncs.begin();iter != vecFuncs.end(); ++iter)
-			{
-				(*iter)(p1,p2,p3);
-			}
-		}
-	protected:
-		std::vector<std::function<FnType> > vecFuncs;
-	};
 
 	class CControlWndUI : public CWindowWnd, public CControlUI
 	{
@@ -76,14 +45,14 @@ namespace DirectUI
 
 		virtual CPoint GetPoint(LPARAM lParam){return CPoint(lParam);}
 	public:
-#define MSG_HANDLED (~0)
-		CFuncSlot<UINT, WPARAM, LPARAM > Slot_PreHandleMessage;
-		CFuncSlot<CPoint> Slot_LButtonDown;
-		CFuncSlot<CPoint> Slot_LButtonUp;
-		CFuncSlot<CPoint> Slot_MouseMove;
-		CFuncSlot<CPoint> Slot_LButtonDBClick;
-		CFuncSlot<CPoint> Slot_KeyDown;
-		CFuncSlot<CPoint> Slot_KeyChar;
+		CFuncSlot_4<UINT, WPARAM, LPARAM ,LRESULT&> Slot_PreHandleMessage;
+		CFuncSlot_1<CPoint> Slot_LBD; //鼠标左键按下
+		CFuncSlot_1<CPoint> Slot_LBU;//鼠标左键弹起
+		CFuncSlot_1<CPoint> Slot_MM;//鼠标移动
+		CFuncSlot_1<CPoint> Slot_LDB;////鼠标左键双击
+		CFuncSlot_1<CPoint> Slot_KD; //键盘按下
+		CFuncSlot_1<CPoint> Slot_KC; //键盘 Char
+		void CP(CPoint) {}
 	};
 
 

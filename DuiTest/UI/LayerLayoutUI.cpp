@@ -13,6 +13,37 @@ namespace DirectUI
 {
 	using namespace Inter;
 
+	void PrintZ(CLayerUI* pLayer) {
+		if (pLayer) {
+			DUI__Trace(_T("name %s - Z %u\n"), pLayer->GetName().GetData(), pLayer->GetZ());
+		}
+	}
+
+	bool CheckGroup(CGroupUI* pGroup)
+	{
+		if (pGroup)
+		{
+			int size = pGroup->GetCount();
+			for (int index = 1;index < size;index++)
+			{
+				if (CheckGroup((CGroupUI*)pGroup->GetItemAt(index)->GetInterface(DUI_CTR_GROUPITEM))) continue;
+				PrintZ((CLayerUI*)pGroup->GetItemAt(index)->GetInterface(DUI_CTR_LAYERITEM));
+			}
+			return true;
+		}
+		return false;
+	}
+
+	void PrintLayerZ(CLayerLayoutUI* pLayout)
+	{
+		int sizeOfLayout = pLayout->GetCount();
+		for (int index = 0;index < sizeOfLayout;index++)
+		{
+			if(CheckGroup((CGroupUI*)pLayout->GetItemAt(index)->GetInterface(DUI_CTR_GROUPITEM))) continue;
+			PrintZ((CLayerUI*)pLayout->GetItemAt(index)->GetInterface(DUI_CTR_LAYERITEM));
+		}
+	}
+
 	void Inter::IInterMessage::AttachEvent(CControlUI* pControl, IInterMessage* pthis, EventFunc pfunc, bool self )
 	{
 		if (pControl == NULL) return;
@@ -35,7 +66,7 @@ namespace DirectUI
 
 	void Inter::IInterMessage::ShareInfo(CControlUI* pControl, std::shared_ptr<_tagLayerInfo>& info)
 	{
-		if(!pControl) return;
+		if(!pControl || !info.get()) return;
 		if(_tcscmp(pControl->GetClass(), TEXT("GroupUI") ) == 0)
 		{
 			CGroupUI* pGroup = (CGroupUI*)(pControl);
@@ -49,6 +80,7 @@ namespace DirectUI
 		{
 			CLayerUI* pLayer = (CLayerUI*)(pControl);
 			pLayer->m_LayerInfo = info;
+			info->zorder.AddEnd(pLayer);
 		}
 	}
 
@@ -189,8 +221,7 @@ namespace DirectUI
 	//CLayerUI
 
 	CLayerUI::CLayerUI()
-		:m_bButtonDown(false),
-		m_bDrag(false)
+		:m_bButtonDown(false),m_nZ(0)
 	{
 	}
 
@@ -378,7 +409,7 @@ namespace DirectUI
 		else if(_tcscmp(pControl->GetClass(), TEXT("LayerUI") ) == 0)
 		{
 			CLayerUI* pLayer = (CLayerUI*)(pControl->GetInterface(DUI_CTR_LAYERITEM));
-			//pLayer->m_LayerInfo = m_LayerInfo;
+			pLayer->m_LayerInfo = m_LayerInfo;
 			AttachEvent(pControl,pLayer,(EventFunc)&CLayerUI::OnChildEvent,true);
 		}
 
@@ -396,6 +427,7 @@ namespace DirectUI
 				if (m_LayerInfo.get())
 				{
 					m_LayerInfo->mapControl.erase(pControl);
+					//m_LayerInfo->pLayout->ZRemove(pControl);
 				}
 				if (m_bAutoDestroy)
 				{
@@ -743,18 +775,17 @@ namespace DirectUI
 				m_hCursor.Release();
 			}
 			m_hCursor.bDrag = 0;
-			for(auto iter = m_funcDrop.begin();iter != m_funcDrop.end(); ++iter)
-			{
-				(*iter)();
-			}
+
 			MoveItem();
 			Invalidate();
 			break;
 		case LayerItemSelect:
 			//DUI__Trace(L"name of control = %s\n",event_->pSender->GetName().GetData());
-			m_MapSelControl.clear();
+			if (!(GetKeyState(VK_CONTROL) & 0x8000))
+			{
+				m_MapSelControl.clear();
+			}
 			m_MapSelControl[event_->pSender] = event_->pSender;
-
 			Invalidate();
 			break;
 		}
@@ -894,6 +925,7 @@ namespace DirectUI
 				if (m_LayerInfo.get())
 				{
 					m_LayerInfo->mapControl.erase(pControl);
+					//ZRemove(pControl);
 				}
 				if (m_bAutoDestroy)
 				{
@@ -912,6 +944,7 @@ namespace DirectUI
 	{
 		m_MapSelControl.clear();
 		m_LayerInfo->mapControl.clear();
+		m_LayerInfo->zorder.RemoveAll();
 		__super::RemoveAll();
 	}
 
@@ -1316,9 +1349,16 @@ namespace DirectUI
 	void CLayerLayoutUI::PaintMoveItem(HDC hDC)
 	{
 		Graphics g(hDC);
+		g.SetClip(Rect(m_rcItem.left, m_rcItem.top, m_rcItem.right, m_rcItem.bottom));
 		if(m_hCursor.bDrag)
 		{
-			g.DrawImage(m_hCursor.pBitmap,m_hCursor.ptOffset.x,m_hCursor.ptMove.y-m_hCursor.ptOffset.y);
+			int heigh = (int)m_hCursor.pBitmap->GetHeight();
+			POINT pt = { m_hCursor.ptOffset.x, m_hCursor.ptMove.y - m_hCursor.ptOffset.y };
+			if (pt.y < m_rcItem.top)
+				pt.y = m_rcItem.top;
+			else if (pt.y > m_rcItem.bottom - heigh)
+				pt.y = m_rcItem.bottom - heigh;
+			g.DrawImage(m_hCursor.pBitmap, pt.x, pt.y);
 		}
 		if (m_miInfo.nLinePos && m_LayerInfo.get())
 		{
@@ -1520,7 +1560,7 @@ namespace DirectUI
 			m_hCursor.ptOffset.y = pt.y-rcItem.top;
 			ICONINFO   ii = {FALSE,(DWORD)(pt.x-rcItem.left),(DWORD)(pt.y-rcItem.top),0,0};
 			Color clear(0,0,0,0);
-			m_hCursor.pBitmap = new Bitmap( rcItem.GetWidth()+32,rcItem.GetHeight()+32 , PixelFormat32bppARGB );
+			m_hCursor.pBitmap = new Bitmap( rcItem.GetWidth(),rcItem.GetHeight(), PixelFormat32bppARGB );
 			HDC hmemDC = CreateCompatibleDC(hDC);   
 			HBITMAP hBmp = CreateCompatibleBitmap(hDC, rcItem.GetWidth(),rcItem.GetHeight());  
 			::SelectObject(hmemDC, hBmp);  
@@ -1628,5 +1668,22 @@ namespace DirectUI
 		return rcItem;
 	}
 
+	void CZOrder::ChangeZOrder(CLayerUI * src, CLayerUI * dst)
+	{
+	}
+
+	void CZOrder::AddEnd(CLayerUI * src)
+	{
+		UINT size = mapZIC.size()+1;
+		mapZIC[size] = src;
+		mapZCI[src] = size;
+		src->SetZ(size);
+	}
+
+	void CZOrder::RemoveAll()
+	{
+		mapZCI.clear();
+		mapZIC.clear();
+	}
 
 }//namespace DirectUI

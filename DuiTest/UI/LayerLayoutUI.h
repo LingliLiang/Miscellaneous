@@ -6,6 +6,7 @@
 #include <memory>
 #include <functional>
 #include <map>
+#include "FunctionSlot.hpp"
 
 extern const TCHAR* DUI_CTR_LAYERLAYOUT;
 extern const TCHAR* DUI_CTR_LAYERITEM;
@@ -18,6 +19,21 @@ namespace DirectUI
 	class CGroupHeaderUI;
 	class CGroupUI;
 	class CLayerLayoutUI;
+	
+	class CZOrder
+	{
+	public:
+		void ChangeZOrder(CLayerUI* src, CLayerUI* dst);
+		void AddEnd(CLayerUI* src);
+		void AddAt(UINT z, CLayerUI* src);
+		void Remove(CLayerUI* src);
+		void RemoveAll();
+
+		std::map<UINT, CLayerUI*> mapZIC;
+		std::map<CLayerUI*, UINT> mapZCI;
+		CFuncSlot_1<std::map<UINT, CLayerUI*>> ChangeItems;
+	};
+
 	typedef struct _tagControlPosInfo
 	{
 		//CControlUI* pControl_;
@@ -69,6 +85,7 @@ namespace DirectUI
 		CString sItemSelectedImage;
 		CLayerLayoutUI* pLayout;
 		MapCtl mapControl;
+		CZOrder zorder;
 		_tagLayerInfo()
 			:nLayerHeight(30),nGroupHeaderHeight(30),
 			dwItemMoveColor(0xFFffae00),dwItemHotBkColor(0xFF6B9299),
@@ -107,6 +124,7 @@ namespace DirectUI
 
 	class CLayerUI  : public CHorizontalLayoutUI, public Inter::IInterMessage
 	{
+		friend class CZOrder;
 		friend class CGroupUI;
 		friend class CLayerLayoutUI;
 		//friend void Inter::ShareInfo(CControlUI* pControl, std::shared_ptr<_tagLayerInfo>& info);
@@ -120,11 +138,19 @@ namespace DirectUI
 
 		void DoEvent(TEventUI& event_);
 		virtual bool OnChildEvent(void* event_in);
+
+		LPVOID GetPtr() { return m_ptr; }
+		VOID SetPtr(LPVOID ptr) { m_ptr = ptr; }
+		UINT GetZ() { return m_nZ; }
 	protected:
+		void SetZ(UINT z) { m_nZ = z; }
+
 		virtual void Message(TEventUI* event_, Inter::InterNotifyMsg what);
 
 		bool m_bButtonDown;
 		bool m_bDrag;
+		UINT m_nZ;
+		LPVOID m_ptr;
 	};
 
 	class CGroupHeaderUI : public CHorizontalLayoutUI
@@ -185,6 +211,7 @@ namespace DirectUI
 	class /*DirectUI_API*/ CLayerLayoutUI 
 		: public CVerticalLayoutUI , public Inter::IInterMessage
 	{
+		friend class CGroupUI;
 	public:
 		CLayerLayoutUI();
 
@@ -212,22 +239,22 @@ namespace DirectUI
 			return NULL;
 		}
 
-		template <typename T> bool BindFunc(int LayerOper, void(T::*pf)(void), T* p)
-		{
-			if(LayerOper == Inter::LayerItemDrop)
-			{
-				std::function<void(void)> func;
-				m_funcDrop.push_back(func);
-				*(m_funcDrop.rbegin()) = std::bind(pf,p);
-			}
-			else if(LayerOper == Inter::LayerItemSelect)
-			{
-				std::function<void(void)> func;
-				m_funcSelect.push_back(func);
-				*(m_funcSelect.rbegin()) = std::bind(pf,p);
-			}
-			return true;
-		}
+		//template <typename T> bool BindFunc(int LayerOper, void(T::*pf)(void), T* p)
+		//{
+		//	if(LayerOper == Inter::LayerItemDrop)
+		//	{
+		//		std::function<void(void)> func;
+		//		m_funcDrop.push_back(func);
+		//		*(m_funcDrop.rbegin()) = std::bind(pf,p);
+		//	}
+		//	else if(LayerOper == Inter::LayerItemSelect)
+		//	{
+		//		std::function<void(void)> func;
+		//		m_funcSelect.push_back(func);
+		//		*(m_funcSelect.rbegin()) = std::bind(pf,p);
+		//	}
+		//	return true;
+		//}
 
 	protected:
 		virtual void Message(TEventUI* event_, Inter::InterNotifyMsg what);
@@ -295,6 +322,7 @@ namespace DirectUI
 		bool MakeCursorImage(HDC hDC, const CRect rcItem, const CPoint pt, int alpha = 200);
 		inline CRect GetFitLayoutRc(CRect rcItem);
 
+		void ZChangedItems(std::map<UINT, CLayerUI*> items);
 	protected:
 
 		struct _tagCursorRes
@@ -318,8 +346,8 @@ namespace DirectUI
 			}
 		} m_hCursor;
 
-		std::vector<std::function<void(void)>> m_funcDrop;
-		std::vector<std::function<void(void)>> m_funcSelect;
+		CFuncSlot_2<UINT, LPVOID> ZorderModify; // Z index & Layer Ptr Pointer;
+		CFuncSlot_1<std::map<UINT, CLayerUI*>> SelectItems; //Fire select items function
 
 		typedef std::map<CControlUI*, void*> MapSel;
 		typedef std::map<CControlUI*, void*>::value_type MapSelVt;
@@ -352,5 +380,7 @@ namespace DirectUI
 	{
 		return reinterpret_cast<TDst*>(t_src);
 	}
+
+	void PrintLayerZ(CLayerLayoutUI* pLayout);
 }
 #endif // __LAYERLISTUI_H__

@@ -1,10 +1,10 @@
 #include "stdafx.h"
 #include "TestWin.h"
-#include "LayerLayoutUI.h"
+#include "ui\LayerLayoutUI.h"
 
 
 #define SKINFILE  _T("TestWin.xml");
-#define SKINFOLDER _T("skin\\default");
+#define SKINFOLDER _T("skin");
 LPCTSTR CTestWin::GetWindowClassName() const
 {
 	return _T("TestWinUI");
@@ -48,12 +48,13 @@ void CTestWin::OnClick(TNotifyUI& msg)
 		{ 
 			SendMessage(WM_SYSCOMMAND, SC_RESTORE, 0); 
 			return; 
-		}	else if (sCtrlName == _T("testbtn"))
+		}
+		else if (sCtrlName == _T("testbtn"))
 		{ 
-			CLayerLayoutUI* p =(CLayerLayoutUI*)GetControl(_T("layerlist"));
+			CLayerLayoutUI* p =(CLayerLayoutUI*)GetControl(_T("layer_layout"));
 			if(p)
 			{
-				p->BindFunc(4,&CTestWin::Drop,this);
+				PrintLayerZ(p);
 			}
 			return; 
 		}

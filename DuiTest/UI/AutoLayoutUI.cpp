@@ -62,7 +62,7 @@ namespace DirectUI
 
 	LPVOID CAutoLayoutUI::GetInterface(LPCTSTR pstrName)
 	{
-		if( _tcscmp(pstrName, DUI_CTR_LAYERLIST) == 0 ) return static_cast<CAutoLayoutUI*>(this);
+		//if( _tcscmp(pstrName, DUI_CTR_LAYERLIST) == 0 ) return static_cast<CAutoLayoutUI*>(this);
 		return CContainerUI::GetInterface(pstrName);
 	}
 
