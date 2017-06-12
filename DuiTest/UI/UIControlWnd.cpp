@@ -23,6 +23,9 @@ namespace DirectUI
 				UI_WNDSTYLE_CHILD,
 				UI_WNDSTYLE_CONTAINER);
 		}
+		DWORD dwStyle = ::GetClassLong(*this,GCL_STYLE);
+		dwStyle |= CS_DBLCLKS;
+		SetClassLong(m_hWnd, GCL_STYLE,dwStyle);
 		__super::DoInit();
 	}
 
@@ -146,117 +149,57 @@ namespace DirectUI
 
 	LRESULT CControlWndUI::OnLButtonDown(WPARAM wParam, LPARAM lParam)
 	{
-		Slot_LBD.Active(GetPoint(lParam));
+		LRESULT lRes = 0;
+		Slot_LBD.Active(GetPoint(lParam),lRes);
+		if (lRes) return lRes;
 		return 0;
 	}
 
 	LRESULT CControlWndUI::OnMouseMove(WPARAM wParam, LPARAM lParam)
 	{
-		Slot_MM.Active(GetPoint(lParam));
+		LRESULT lRes = 0;
+		Slot_MM.Active(GetPoint(lParam),lRes);
+		if (lRes) return lRes;
 		return 0;
 	}
 
 	LRESULT CControlWndUI::OnLButtonUp(WPARAM wParam, LPARAM lParam)
 	{
-		Slot_LBU.Active(GetPoint(lParam));
+		LRESULT lRes = 0;
+		Slot_LBU.Active(GetPoint(lParam),lRes);
+		if (lRes) return lRes;
 		return 0;
 	}
 
 	LRESULT CControlWndUI::OnLButtonDBClick(WPARAM wParam, LPARAM lParam)
 	{
-		Slot_LDB.Active(GetPoint(lParam));
+		LRESULT lRes = 0;
+		Slot_LDB.Active(GetPoint(lParam),lRes);
+		if (lRes) return lRes;
 		return 0;
 	}
 
 	LRESULT CControlWndUI::OnKeyDown(WPARAM wParam, LPARAM lParam)
 	{
-		switch(wParam)
-		{
-		case VK_UP:
-			{
-			}
-			break;
-
-		case VK_DOWN:
-			{
-			}
-			break;
-
-		case VK_LEFT:
-			{
-			}
-			break;
-
-		case VK_RIGHT:
-			{
-			}
-			break;
-		case VK_OEM_4: //[
-			if(GetKeyState( VK_CONTROL ) & 0x8000)
-			{
-			}
-			break;
-		case VK_OEM_6: //]
-			if(GetKeyState( VK_CONTROL ) & 0x8000)
-			{
-			}
-			break;
-
-		case VK_DELETE:
-		case VK_BACK:
-			break;
-		case 'A':
-			if(GetKeyState( VK_CONTROL ) & 0x8000)
-			{
-			}
-			break;
-		case 'V':
-			if(::GetAsyncKeyState(VK_CONTROL))
-			{
-				if(::OpenClipboard(*this))
-				{
-					UINT uiFormat = (sizeof(TCHAR) == sizeof(WCHAR))?CF_UNICODETEXT:CF_TEXT;
-					HGLOBAL hText = ::GetClipboardData(uiFormat);
-					if(hText != NULL)
-					{
-						LPCTSTR lpStr = (LPCTSTR)::GlobalLock(hText);
-						if(lpStr != NULL)
-						{
-						}
-						::GlobalUnlock(hText);
-					}
-				}
-				::CloseClipboard();
-			}
-			break;
-		default:
-			break;
-		}
+		LRESULT lRes = 0;
+		Slot_KD.Active(wParam,lParam,lRes);
+		if (lRes) return lRes;
 		return 0;
 	}
 
 	LRESULT CControlWndUI::OnChar(WPARAM wParam, LPARAM lParam)
 	{
-		switch(wParam)
-		{
-		case VK_BACK:
-			break;
-
-		case 0x1://ctrl+a
-		case 0x3://ctrl+c
-		case 0x16://ctrl+v
-			break;
-		default:
-			{
-				TCHAR ch[2] = {0};
-				ch[0] = (TCHAR)wParam;
-			}
-		}
+		LRESULT lRes = 0;
+		Slot_KC.Active(wParam,lParam,lRes);
+		if (lRes) return lRes;
 		return 0;
 	}
 
 	LRESULT CControlWndUI::OnSetCursor(WPARAM wParam, LPARAM lParam)
 	{
+		LRESULT lRes = 0;
+		Slot_SC.Active(wParam,lParam,lRes);
+		if (lRes) return lRes;
 		return 0;
 	}
 

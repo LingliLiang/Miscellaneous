@@ -46,13 +46,13 @@ namespace DirectUI
 		virtual CPoint GetPoint(LPARAM lParam){return CPoint(lParam);}
 	public:
 		CFuncSlot_4<UINT, WPARAM, LPARAM ,LRESULT&> Slot_PreHandleMessage;
-		CFuncSlot_1<CPoint> Slot_LBD; //鼠标左键按下
-		CFuncSlot_1<CPoint> Slot_LBU;//鼠标左键弹起
-		CFuncSlot_1<CPoint> Slot_MM;//鼠标移动
-		CFuncSlot_1<CPoint> Slot_LDB;////鼠标左键双击
-		CFuncSlot_1<CPoint> Slot_KD; //键盘按下
-		CFuncSlot_1<CPoint> Slot_KC; //键盘 Char
-		void CP(CPoint) {}
+		CFuncSlot_2<CPoint,LRESULT&> Slot_LBD; //鼠标左键按下
+		CFuncSlot_2<CPoint,LRESULT&> Slot_LBU;//鼠标左键弹起
+		CFuncSlot_2<CPoint,LRESULT&> Slot_MM;//鼠标移动
+		CFuncSlot_2<CPoint,LRESULT&> Slot_LDB;////鼠标左键双击
+		CFuncSlot_3<WPARAM,LPARAM,LRESULT&> Slot_KD; //键盘按下
+		CFuncSlot_3<WPARAM,LPARAM,LRESULT&> Slot_KC; //键盘 Char
+		CFuncSlot_3<WPARAM,LPARAM,LRESULT&> Slot_SC; //设置光标
 	};
 
 
