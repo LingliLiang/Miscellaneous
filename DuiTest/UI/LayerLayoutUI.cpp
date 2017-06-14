@@ -221,7 +221,8 @@ namespace DirectUI
 	//CLayerUI
 
 	CLayerUI::CLayerUI()
-		:m_bButtonDown(false),m_nZ(0)
+		:m_bButtonDown(false),m_nZ(0),
+		m_bDrag(false), m_ptr(nullptr)
 	{
 	}
 
@@ -261,12 +262,13 @@ namespace DirectUI
 		}
 		if (event_.Type == UIEVENT_BUTTONDOWN)
 		{
+			m_bButtonDown = true;
 			m_ptLBDown = event_.ptMouse;
 			return;
 		}
 		if (event_.Type == UIEVENT_MOUSEMOVE)
 		{
-			if(!m_bDrag && m_LayerInfo.get())
+			if(m_bButtonDown && !m_bDrag && m_LayerInfo.get())
 			{
 				CRect rcTest = m_LayerInfo->rcDragTest;
 				rcTest.MoveToXY(m_ptLBDown.x-rcTest.GetWidth()/2,m_ptLBDown.y-rcTest.GetHeight()/2);
@@ -274,6 +276,7 @@ namespace DirectUI
 				{
 					m_bDrag = true;
 					event_.pSender = this;
+					event_.ptMouse = m_ptLBDown;
 					Message(&event_,LayerItemDrag);
 				}
 			}
@@ -282,10 +285,11 @@ namespace DirectUI
 		}
 		if (event_.Type == UIEVENT_BUTTONUP)
 		{
-			if(m_bDrag){
+			if (m_bDrag) {
 				m_bDrag = false;
-				Message(&event_,LayerItemDrop);
+				Message(&event_, LayerItemDrop);
 			}
+			m_bButtonDown = false;
 			m_ptLBDown.x = m_ptLBDown.y = 0;
 			return;
 		}
@@ -294,12 +298,15 @@ namespace DirectUI
 
 	bool CLayerUI::OnChildEvent(void* event_in)
 	{
+		//there also track CLayer Event
 		TEventUI* pEvent = static_cast<TEventUI*>(event_in);
 		if(!pEvent) return false;
-		if (pEvent->Type == UIEVENT_BUTTONDOWN)
+		if (pEvent->Type == UIEVENT_BUTTONUP)
 		{
-			pEvent->pSender = this;
-			Message(pEvent,LayerItemSelect);
+			if (!m_bDrag) { //isn't Draging can select
+				pEvent->pSender = this;
+				Message(pEvent, LayerItemSelect);
+			}
 		}
 		return true;
 	}
@@ -488,6 +495,7 @@ namespace DirectUI
 				this->NeedParentUpdate();
 				Message(0,NeedLayoutUpdate);
 			}
+			m_ptLBDown = event_.ptMouse;
 			return;
 		}
 		if (event_.Type == UIEVENT_DBLCLICK)
@@ -499,25 +507,29 @@ namespace DirectUI
 		}
 		if (event_.Type == UIEVENT_MOUSEMOVE)
 		{
-			if(m_bButtonDown)
+			if(m_bButtonDown && !m_bDrag && m_LayerInfo.get())
 			{
-				if(!m_bDrag){
-					event_.pSender = m_header.get();
-					Message(&event_,LayerItemDrag);
+				CRect rcTest = m_LayerInfo->rcDragTest;
+				rcTest.MoveToXY(m_ptLBDown.x - rcTest.GetWidth() / 2, m_ptLBDown.y - rcTest.GetHeight() / 2);
+				if (!::PtInRect(&rcTest, event_.ptMouse))
+				{
 					m_bDrag = true;
+					event_.pSender = m_header.get();
+					event_.ptMouse = m_ptLBDown;
+					Message(&event_, LayerItemDrag);
 				}
-				Message(&event_,LayerItemMove);
 			}
+			Message(&event_, LayerItemMove);
 			return;
 		}
 		if (event_.Type == UIEVENT_BUTTONUP)
 		{
-			if(m_bButtonDown) m_bButtonDown = false;
-			if(m_bDrag)
-			{
-				Message(&event_,LayerItemDrop);
+			if (m_bDrag) {
 				m_bDrag = false;
+				Message(&event_, LayerItemDrop);
 			}
+			m_bButtonDown = false;
+			m_ptLBDown.x = m_ptLBDown.y = 0;
 			return;
 		}
 		if (event_.Type == UIEVENT_CONTEXTMENU)
@@ -540,10 +552,12 @@ namespace DirectUI
 	{
 		TEventUI* pEvent = static_cast<TEventUI*>(event_in);
 		if(!pEvent) return false;
-		if (pEvent->Type == UIEVENT_BUTTONDOWN)
+		if (pEvent->Type == UIEVENT_BUTTONUP)
 		{
-			pEvent->pSender = m_header.get();
-			Message(pEvent,LayerItemSelect);
+			if (!m_bDrag) { //isn't Draging can select
+				pEvent->pSender = m_header.get();
+				Message(pEvent, LayerItemSelect);
+			}
 		}
 		return true;
 	}
@@ -802,6 +816,16 @@ namespace DirectUI
 
 	//Attributes settings
 	//--------------------------------------------------------------------------------------------
+	void CLayerLayoutUI::SetMultiSel(bool bFlag)
+	{
+		m_bMultiSel = bFlag;
+	}
+
+	bool CLayerLayoutUI::GetMultiSel() const
+	{
+		return m_bMultiSel;
+	}
+
 	void CLayerLayoutUI::SetLayerSelImage(LPCTSTR pstrImage)
 	{
 		if(m_LayerInfo.get())
@@ -915,8 +939,8 @@ namespace DirectUI
 		{
 			//m_pVerticalScrollBar->SetVisible(false);
 		}
-		else if( _tcscmp(pstrName, _T("vermode")) == 0 )
-			(_tcscmp(pstrValue, _T("true")) == 0);
+		else if( _tcscmp(pstrName, _T("multisel")) == 0 )
+			SetMultiSel(_tcscmp(pstrValue, _T("true")) == 0);
 		else if( _tcscmp(pstrName, _T("layerselimage")) == 0 )
 			SetLayerSelImage(pstrValue);
 		else if( _tcscmp(pstrName, _T("layerhotimage")) == 0 )
@@ -1016,6 +1040,16 @@ namespace DirectUI
 	void CLayerLayoutUI::PaintBkImage(HDC hDC)
 	{
 		__super::PaintBkImage(hDC);
+		if (m_pVerticalScrollBar && !m_pVerticalScrollBar->IsVisible())
+		{
+			CRect rcItem = m_rcItem;
+			rcItem.Deflate(&m_rcInset);
+			rcItem.left = rcItem.right - m_pVerticalScrollBar->GetFixedWidth();
+			CUIString bkImg = m_pVerticalScrollBar->GetBkNormalImage();
+			if (!bkImg.IsEmpty()) {
+				DrawImage(hDC, rcItem, bkImg);
+			}
+		}
 	}
 
 	void CLayerLayoutUI::PaintStatusImage(HDC hDC)
@@ -1081,11 +1115,14 @@ namespace DirectUI
 			if (m_miInfo.bGroup)
 			{
 				CRect rc = GetFitLayoutRc(m_miInfo.dst->GetPos());
+				rcLine.right = rc.right;
 				rcLine.top = rc.top;
 				rcLine.bottom = rc.bottom;
 			}
 			else
 			{
+				CRect rc = GetFitLayoutRc(rcLine);
+				rcLine.right = rc.right;
 				rcLine.top = m_miInfo.nLinePos - 1;
 				rcLine.bottom = m_miInfo.nLinePos + 1;
 			}
@@ -1239,6 +1276,7 @@ namespace DirectUI
 
 	void CLayerLayoutUI::SetPos(RECT rc)
 	{
+		//we want Vertical scrollbar show all time
 		CControlUI::SetPos(rc);
 		rc = m_rcItem;
 
@@ -1247,7 +1285,7 @@ namespace DirectUI
 		rc.top += m_rcInset.top;
 		rc.right -= m_rcInset.right;
 		rc.bottom -= m_rcInset.bottom;
-		if (m_pVerticalScrollBar && m_pVerticalScrollBar->IsVisible()) rc.right -= m_pVerticalScrollBar->GetFixedWidth();
+		if (m_pVerticalScrollBar/* && m_pVerticalScrollBar->IsVisible()*/) rc.right -= m_pVerticalScrollBar->GetFixedWidth();
 		if (m_pHorizontalScrollBar && m_pHorizontalScrollBar->IsVisible()) rc.bottom -= m_pHorizontalScrollBar->GetFixedHeight();
 
 		if (m_items.GetSize() == 0) {
@@ -1287,7 +1325,7 @@ namespace DirectUI
 		// Position the elements
 		SIZE szRemaining = szAvailable;
 		int iPosY = rc.top;
-		if (m_pVerticalScrollBar && m_pVerticalScrollBar->IsVisible()) {
+		if (m_pVerticalScrollBar /*&& m_pVerticalScrollBar->IsVisible()*/) {
 			iPosY -= m_pVerticalScrollBar->GetScrollPos();
 		}
 		int iPosX = rc.left;
@@ -1662,6 +1700,7 @@ namespace DirectUI
 	{
 		rcItem.left = m_rcItem.left;
 		rcItem.right = m_rcItem.right;
+		if (m_pVerticalScrollBar) rcItem.right -= m_pVerticalScrollBar->GetFixedWidth();
 		return rcItem;
 	}
 

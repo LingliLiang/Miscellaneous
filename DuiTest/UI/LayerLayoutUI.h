@@ -69,7 +69,7 @@ namespace DirectUI
 		CLayerLayoutUI* pLayout;//main layout pointer
 		std::map<CControlUI*, ControlPosInfo> mapControl; //control pos map
 		_tagLayerInfo()
-			:rcDragTest(0,0,4,4),nLayerHeight(30),nGroupHeaderHeight(30),
+			:rcLayerInset(10,0,0,0),rcDragTest(0,0,4,4),nLayerHeight(30),nGroupHeaderHeight(30),
 			dwItemMoveColor(0xFFffae00),dwItemHotBkColor(0xFF6B9299),
 			dwItemSelectedBkColor(0xFF258C9C),pLayout(0)
 		{}
@@ -185,6 +185,7 @@ namespace DirectUI
 		size_t m_defaultHeaderHeight; 
 		size_t m_bExpand;
 		bool m_bButtonDown;
+		POINT m_ptLBDown;
 		bool m_bDrag;
 		std::unique_ptr<CGroupHeaderUI> m_header;
 	};
@@ -262,6 +263,7 @@ namespace DirectUI
 		
 		void DoEvent(TEventUI& event_);
 		void SetPos(RECT rc);
+		//virtual void ProcessScrollBar(RECT rc, int cxRequired, int cyRequired);
 		void EnsureVisible(int nIndex);
 
 		bool SelectItem(UINT nZIndex);
