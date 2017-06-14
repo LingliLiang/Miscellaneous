@@ -80,7 +80,7 @@ namespace DirectUI
 		{
 			CLayerUI* pLayer = (CLayerUI*)(pControl);
 			pLayer->m_LayerInfo = info;
-			info->zorder.AddEnd(pLayer);
+			info->pLayout->AddEnd(pLayer);
 		}
 	}
 
@@ -140,7 +140,7 @@ namespace DirectUI
 	{
 	public:
 		MapControlFind(POINT pt, MoveItemInfo& mii) :pt_(pt),mii_(mii) {}
-		bool operator()(const MapCtlVt &pair)
+		bool operator()(const std::map<CControlUI*, ControlPosInfo>::value_type &pair)
 		{
 			do{
 				if(mii_.src == pair.first)
@@ -261,30 +261,32 @@ namespace DirectUI
 		}
 		if (event_.Type == UIEVENT_BUTTONDOWN)
 		{
-			m_bButtonDown = true;
+			m_ptLBDown = event_.ptMouse;
 			return;
 		}
 		if (event_.Type == UIEVENT_MOUSEMOVE)
 		{
-			if(m_bButtonDown)
+			if(!m_bDrag && m_LayerInfo.get())
 			{
-				if(!m_bDrag){
+				CRect rcTest = m_LayerInfo->rcDragTest;
+				rcTest.MoveToXY(m_ptLBDown.x-rcTest.GetWidth()/2,m_ptLBDown.y-rcTest.GetHeight()/2);
+				if(!::PtInRect(&rcTest,event_.ptMouse))
+				{
 					m_bDrag = true;
 					event_.pSender = this;
 					Message(&event_,LayerItemDrag);
 				}
-				Message(&event_,LayerItemMove);
 			}
+			Message(&event_,LayerItemMove);
 			return;
 		}
 		if (event_.Type == UIEVENT_BUTTONUP)
 		{
-			if(m_bButtonDown)
-				m_bButtonDown = false;
 			if(m_bDrag){
 				m_bDrag = false;
 				Message(&event_,LayerItemDrop);
 			}
+			m_ptLBDown.x = m_ptLBDown.y = 0;
 			return;
 		}
 		CContainerUI::DoEvent(event_);
@@ -713,7 +715,7 @@ namespace DirectUI
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	//CLayerLayoutUI
 
-	CLayerLayoutUI::CLayerLayoutUI() : m_bVertical(true),
+	CLayerLayoutUI::CLayerLayoutUI() :
 		m_bMultiSel(false),m_pHotControl(NULL)
 	{
 		m_LayerInfo = std::make_shared<_tagLayerInfo>();
@@ -780,174 +782,25 @@ namespace DirectUI
 			Invalidate();
 			break;
 		case LayerItemSelect:
-			//DUI__Trace(L"name of control = %s\n",event_->pSender->GetName().GetData());
+			DUI__Trace(L"name of control = %s\n",event_->pSender->GetName().GetData());
 			if (!(GetKeyState(VK_CONTROL) & 0x8000))
 			{
 				m_MapSelControl.clear();
 			}
 			m_MapSelControl[event_->pSender] = event_->pSender;
+			slot_SelectItems.Active(MakeSelectItems());
 			Invalidate();
 			break;
 		}
 
 	}
 
-	void CLayerLayoutUI::SetPos(RECT rc)
+	bool CLayerLayoutUI::OnChildEvent(void* event_in)
 	{
-		CControlUI::SetPos(rc);
-		rc = m_rcItem;
-
-		// Adjust for inset
-		rc.left += m_rcInset.left;
-		rc.top += m_rcInset.top;
-		rc.right -= m_rcInset.right;
-		rc.bottom -= m_rcInset.bottom;
-		if (m_pVerticalScrollBar && m_pVerticalScrollBar->IsVisible()) rc.right -= m_pVerticalScrollBar->GetFixedWidth();
-		if (m_pHorizontalScrollBar && m_pHorizontalScrollBar->IsVisible()) rc.bottom -= m_pHorizontalScrollBar->GetFixedHeight();
-
-		if (m_items.GetSize() == 0) {
-			ProcessScrollBar(rc, 0, 0);
-			return;
-		}
-
-		// Determine the minimum size
-		SIZE szAvailable = { rc.right - rc.left, rc.bottom - rc.top };
-		if (m_pHorizontalScrollBar && m_pHorizontalScrollBar->IsVisible())
-			szAvailable.cx += m_pHorizontalScrollBar->GetScrollRange();
-
-		int nAdjustables = 0;
-		int cyFixed = 0;
-		int nEstimateNum = 0;
-		for (int it1 = 0; it1 < m_items.GetSize(); it1++) {
-			CControlUI* pControl = static_cast<CControlUI*>(m_items[it1]);
-			if (!pControl->IsVisible()) continue;
-			if (pControl->IsFloat()) continue;
-			SIZE sz = pControl->EstimateSize(szAvailable);
-			if (sz.cy == 0) {
-				nAdjustables++;
-			}
-			else {
-				if (sz.cy < pControl->GetMinHeight()) sz.cy = pControl->GetMinHeight();
-				if (sz.cy > pControl->GetMaxHeight()) sz.cy = pControl->GetMaxHeight();
-			}
-			cyFixed += sz.cy + pControl->GetPadding().top + pControl->GetPadding().bottom;
-			nEstimateNum++;
-		}
-		cyFixed += (nEstimateNum - 1) * m_iChildPadding;
-
-		// Place elements
-		int cyNeeded = 0;
-		int cyExpand = 0;
-		if (nAdjustables > 0) cyExpand = max(0, (szAvailable.cy - cyFixed) / nAdjustables);
-		// Position the elements
-		SIZE szRemaining = szAvailable;
-		int iPosY = rc.top;
-		if (m_pVerticalScrollBar && m_pVerticalScrollBar->IsVisible()) {
-			iPosY -= m_pVerticalScrollBar->GetScrollPos();
-		}
-		int iPosX = rc.left;
-		if (m_pHorizontalScrollBar && m_pHorizontalScrollBar->IsVisible()) {
-			iPosX -= m_pHorizontalScrollBar->GetScrollPos();
-		}
-		int iAdjustable = 0;
-		int cyFixedRemaining = cyFixed;
-		for (int it2 = 0; it2 < m_items.GetSize(); it2++) {
-			CControlUI* pControl = static_cast<CControlUI*>(m_items[it2]);
-			if (!pControl->IsVisible()) continue;
-			if (pControl->IsFloat()) {
-				SetFloatPos(it2);
-				continue;
-			}
-
-			RECT rcPadding = pControl->GetPadding();
-			szRemaining.cy -= rcPadding.top;
-			SIZE sz = pControl->EstimateSize(szRemaining);
-			if (sz.cy == 0) {
-				iAdjustable++;
-				sz.cy = cyExpand;
-				// Distribute remaining to last element (usually round-off left-overs)
-				if (iAdjustable == nAdjustables) {
-					sz.cy = max(0, szRemaining.cy - rcPadding.bottom - cyFixedRemaining);
-				}
-				if (sz.cy < pControl->GetMinHeight()) sz.cy = pControl->GetMinHeight();
-				if (sz.cy > pControl->GetMaxHeight()) sz.cy = pControl->GetMaxHeight();
-			}
-			else {
-				if (sz.cy < pControl->GetMinHeight()) sz.cy = pControl->GetMinHeight();
-				if (sz.cy > pControl->GetMaxHeight()) sz.cy = pControl->GetMaxHeight();
-				cyFixedRemaining -= sz.cy;
-			}
-
-			sz.cx = pControl->GetFixedWidth();
-			if (sz.cx == 0) sz.cx = szAvailable.cx - rcPadding.left - rcPadding.right;
-			if (sz.cx < 0) sz.cx = 0;
-			if (sz.cx < pControl->GetMinWidth()) sz.cx = pControl->GetMinWidth();
-			if (sz.cx > pControl->GetMaxWidth()) sz.cx = pControl->GetMaxWidth();
-
-			RECT rcCtrl = { iPosX + rcPadding.left, iPosY + rcPadding.top, iPosX + rcPadding.left + sz.cx, iPosY + sz.cy + rcPadding.top + rcPadding.bottom };
-			pControl->SetPos(rcCtrl);
-			CheckControl(pControl);
-
-			iPosY += sz.cy + m_iChildPadding + rcPadding.top + rcPadding.bottom;
-			cyNeeded += sz.cy + rcPadding.top + rcPadding.bottom;
-			szRemaining.cy -= sz.cy + m_iChildPadding + rcPadding.bottom;
-		}
-		cyNeeded += (nEstimateNum - 1) * m_iChildPadding;
-
-		// Process the scrollbar
-		ProcessScrollBar(rc, 0, cyNeeded);
+		return true;
 	}
 
-	bool CLayerLayoutUI::Add(CControlUI* pControl)
-	{
-		if(pControl == NULL) return false;
-		if(_tcscmp(pControl->GetClass(), TEXT("LayerUI") ) == 0)
-		{
-			CLayerUI* pLayer = (CLayerUI*)(pControl->GetInterface(DUI_CTR_LAYERITEM));
-			ShareInfo(pControl,m_LayerInfo);
-			AttachEvent(pControl,pLayer,(EventFunc)&CLayerUI::OnChildEvent,true);
-		}
-		else if(_tcscmp(pControl->GetClass(), TEXT("GroupUI") ) == 0)
-		{
-			ShareInfo(pControl,m_LayerInfo);
-		}
-		return __super::Add(pControl);
-	}
-
-	bool CLayerLayoutUI::Remove(CControlUI * pControl)
-	{
-		if (pControl == NULL) return false;
-		for (int it = 0; it < m_items.GetSize(); it++)
-		{
-			if (static_cast<CControlUI*>(m_items[it]) == pControl)
-			{
-				NeedUpdate();
-				if (m_LayerInfo.get())
-				{
-					m_LayerInfo->mapControl.erase(pControl);
-					//ZRemove(pControl);
-				}
-				if (m_bAutoDestroy)
-				{
-					if (m_bDelayedDestroy && m_pManager)
-						m_pManager->AddDelayedCleanup(pControl);
-					else delete pControl;
-				}
-				return m_items.Remove(it);
-			}
-		}
-
-		return false;
-	}
-
-	void CLayerLayoutUI::RemoveAll()
-	{
-		m_MapSelControl.clear();
-		m_LayerInfo->mapControl.clear();
-		m_LayerInfo->zorder.RemoveAll();
-		__super::RemoveAll();
-	}
-
+	//Attributes settings
 	//--------------------------------------------------------------------------------------------
 	void CLayerLayoutUI::SetLayerSelImage(LPCTSTR pstrImage)
 	{
@@ -1048,8 +901,6 @@ namespace DirectUI
 		return m_LayerInfo->rcLayerInset;
 	}
 
-	//--------------------------------------------------------------------------------------------
-
 	void CLayerLayoutUI::SetAttribute(LPCTSTR pstrName, LPCTSTR pstrValue)
 	{
 		CContainerUI::SetAttribute(pstrName, pstrValue);
@@ -1128,6 +979,130 @@ namespace DirectUI
 		}
 	}
 
+	//Paintting controls
+	//--------------------------------------------------------------------------------------------
+	void CLayerLayoutUI::DoPaint(HDC hDC, const RECT& rcPaint)
+	{
+		CContainerUI::DoPaint(hDC,rcPaint);
+		PaintMoveItem(hDC);
+	}
+
+	void CLayerLayoutUI::PaintBkColor(HDC hDC)
+	{
+		__super::PaintBkColor(hDC);
+		if(m_LayerInfo.get())
+		{
+			//paint selected layer or group
+			if(m_LayerInfo->dwItemSelectedBkColor && m_MapSelControl.size())
+			{
+				for(auto iter = m_MapSelControl.begin(); iter != m_MapSelControl.end(); ++iter)
+				{
+					RECT rcItem = iter->first->GetPos();
+					int offsetl = max(m_nBorderSize, m_rcInset.left);
+					int offsetr = max(m_nBorderSize, m_rcInset.right);
+					rcItem.left = m_rcItem.left + offsetl;
+					rcItem.right = m_rcItem.right - offsetr;
+					CRenderEngine::DrawColor(hDC, rcItem, GetAdjustColor(m_LayerInfo->dwItemSelectedBkColor));
+				}
+			}
+			if(m_LayerInfo->dwItemHotBkColor && m_pHotControl != NULL)
+			{
+				RECT rcItem = m_pHotControl->GetPos();
+				CRenderEngine::DrawColor(hDC, rcItem, GetAdjustColor(m_LayerInfo->dwItemHotBkColor));
+			}
+		}
+	}
+
+	void CLayerLayoutUI::PaintBkImage(HDC hDC)
+	{
+		__super::PaintBkImage(hDC);
+	}
+
+	void CLayerLayoutUI::PaintStatusImage(HDC hDC)
+	{
+		__super::PaintStatusImage(hDC);
+		if(m_LayerInfo.get())
+		{
+			//paint selected layer or group
+			if(!m_LayerInfo->sItemSelectedImage.IsEmpty() && m_MapSelControl.size())
+			{
+				for(auto iter = m_MapSelControl.begin(); iter != m_MapSelControl.end(); ++iter)
+				{
+					RECT rcItem = iter->first->GetPos();
+					int offsetl = max(m_nBorderSize, m_rcInset.left);
+					int offsetr = max(m_nBorderSize, m_rcInset.right);
+					rcItem.left = m_rcItem.left + offsetl;
+					rcItem.right = m_rcItem.right - offsetr;
+					if (!DrawImage(hDC, rcItem, (LPCTSTR)m_LayerInfo->sItemSelectedImage))
+					{
+						m_LayerInfo->sItemSelectedImage.Empty();
+						break;
+					}
+				}
+			}
+			if(!m_LayerInfo->sItemHotImage.IsEmpty() && m_pHotControl != NULL)
+			{
+				RECT rcItem = m_pHotControl->GetPos();
+				if (!DrawImage(hDC, rcItem, (LPCTSTR)m_LayerInfo->sItemHotImage))
+					m_LayerInfo->sItemHotImage.Empty();
+			}
+		}
+
+	}
+
+	void CLayerLayoutUI::PaintText(HDC hDC)
+	{
+		__super::PaintText(hDC);
+	}
+
+	void CLayerLayoutUI::PaintBorder(HDC hDC)
+	{
+		__super::PaintBorder(hDC);
+	}
+
+	void CLayerLayoutUI::PaintMoveItem(HDC hDC)
+	{
+		Graphics g(hDC);
+		g.SetClip(Rect(m_rcItem.left, m_rcItem.top, m_rcItem.right, m_rcItem.bottom));
+		if(m_hCursor.bDrag)
+		{
+			int heigh = (int)m_hCursor.pBitmap->GetHeight();
+			POINT pt = { m_hCursor.ptOffset.x, m_hCursor.ptMove.y - m_hCursor.ptOffset.y };
+			if (pt.y < m_rcItem.top)
+				pt.y = m_rcItem.top;
+			else if (pt.y > m_rcItem.bottom - heigh)
+				pt.y = m_rcItem.bottom - heigh;
+			g.DrawImage(m_hCursor.pBitmap, pt.x, pt.y);
+		}
+		if (m_miInfo.nLinePos && m_LayerInfo.get())
+		{
+			Pen pen(Color(m_LayerInfo->dwItemMoveColor));
+			CRect rcLine = m_rcItem;
+			if (m_miInfo.bGroup)
+			{
+				CRect rc = GetFitLayoutRc(m_miInfo.dst->GetPos());
+				rcLine.top = rc.top;
+				rcLine.bottom = rc.bottom;
+			}
+			else
+			{
+				rcLine.top = m_miInfo.nLinePos - 1;
+				rcLine.bottom = m_miInfo.nLinePos + 1;
+			}
+			g.DrawLine(&pen, Point(rcLine.left+1, rcLine.top), Point(rcLine.left+1, rcLine.bottom));
+			g.DrawLine(&pen, Point(rcLine.left+1, rcLine.top), Point(rcLine.right-1, rcLine.top));
+			g.DrawLine(&pen, Point(rcLine.left+1, rcLine.bottom), Point(rcLine.right-1, rcLine.bottom));
+			g.DrawLine(&pen, Point(rcLine.right-1, rcLine.top), Point(rcLine.right-1, rcLine.bottom));
+		}
+	}
+
+	bool CLayerLayoutUI::DrawImage(HDC hDC, const RECT &rcItem, LPCTSTR pStrImage, LPCTSTR pStrModify)
+	{
+		return CRenderEngine::DrawImageString(hDC, m_pManager, rcItem, m_rcPaint, pStrImage, pStrModify);
+	}
+
+	//Position controls
+	//--------------------------------------------------------------------------------------------
 	void CLayerLayoutUI::DoEvent(TEventUI& event_)
 	{
 		if (event_.Type == UIEVENT_BUTTONDOWN && IsEnabled())
@@ -1262,175 +1237,303 @@ namespace DirectUI
 		CControlUI::DoEvent(event_);
 	}
 
-	bool CLayerLayoutUI::OnChildEvent(void* event_in)
+	void CLayerLayoutUI::SetPos(RECT rc)
 	{
+		CControlUI::SetPos(rc);
+		rc = m_rcItem;
+
+		// Adjust for inset
+		rc.left += m_rcInset.left;
+		rc.top += m_rcInset.top;
+		rc.right -= m_rcInset.right;
+		rc.bottom -= m_rcInset.bottom;
+		if (m_pVerticalScrollBar && m_pVerticalScrollBar->IsVisible()) rc.right -= m_pVerticalScrollBar->GetFixedWidth();
+		if (m_pHorizontalScrollBar && m_pHorizontalScrollBar->IsVisible()) rc.bottom -= m_pHorizontalScrollBar->GetFixedHeight();
+
+		if (m_items.GetSize() == 0) {
+			ProcessScrollBar(rc, 0, 0);
+			return;
+		}
+
+		// Determine the minimum size
+		SIZE szAvailable = { rc.right - rc.left, rc.bottom - rc.top };
+		if (m_pHorizontalScrollBar && m_pHorizontalScrollBar->IsVisible())
+			szAvailable.cx += m_pHorizontalScrollBar->GetScrollRange();
+
+		int nAdjustables = 0;
+		int cyFixed = 0;
+		int nEstimateNum = 0;
+		for (int it1 = 0; it1 < m_items.GetSize(); it1++) {
+			CControlUI* pControl = static_cast<CControlUI*>(m_items[it1]);
+			if (!pControl->IsVisible()) continue;
+			if (pControl->IsFloat()) continue;
+			SIZE sz = pControl->EstimateSize(szAvailable);
+			if (sz.cy == 0) {
+				nAdjustables++;
+			}
+			else {
+				if (sz.cy < pControl->GetMinHeight()) sz.cy = pControl->GetMinHeight();
+				if (sz.cy > pControl->GetMaxHeight()) sz.cy = pControl->GetMaxHeight();
+			}
+			cyFixed += sz.cy + pControl->GetPadding().top + pControl->GetPadding().bottom;
+			nEstimateNum++;
+		}
+		cyFixed += (nEstimateNum - 1) * m_iChildPadding;
+
+		// Place elements
+		int cyNeeded = 0;
+		int cyExpand = 0;
+		if (nAdjustables > 0) cyExpand = max(0, (szAvailable.cy - cyFixed) / nAdjustables);
+		// Position the elements
+		SIZE szRemaining = szAvailable;
+		int iPosY = rc.top;
+		if (m_pVerticalScrollBar && m_pVerticalScrollBar->IsVisible()) {
+			iPosY -= m_pVerticalScrollBar->GetScrollPos();
+		}
+		int iPosX = rc.left;
+		if (m_pHorizontalScrollBar && m_pHorizontalScrollBar->IsVisible()) {
+			iPosX -= m_pHorizontalScrollBar->GetScrollPos();
+		}
+		int iAdjustable = 0;
+		int cyFixedRemaining = cyFixed;
+		for (int it2 = 0; it2 < m_items.GetSize(); it2++) {
+			CControlUI* pControl = static_cast<CControlUI*>(m_items[it2]);
+			if (!pControl->IsVisible()) continue;
+			if (pControl->IsFloat()) {
+				SetFloatPos(it2);
+				continue;
+			}
+
+			RECT rcPadding = pControl->GetPadding();
+			szRemaining.cy -= rcPadding.top;
+			SIZE sz = pControl->EstimateSize(szRemaining);
+			if (sz.cy == 0) {
+				iAdjustable++;
+				sz.cy = cyExpand;
+				// Distribute remaining to last element (usually round-off left-overs)
+				if (iAdjustable == nAdjustables) {
+					sz.cy = max(0, szRemaining.cy - rcPadding.bottom - cyFixedRemaining);
+				}
+				if (sz.cy < pControl->GetMinHeight()) sz.cy = pControl->GetMinHeight();
+				if (sz.cy > pControl->GetMaxHeight()) sz.cy = pControl->GetMaxHeight();
+			}
+			else {
+				if (sz.cy < pControl->GetMinHeight()) sz.cy = pControl->GetMinHeight();
+				if (sz.cy > pControl->GetMaxHeight()) sz.cy = pControl->GetMaxHeight();
+				cyFixedRemaining -= sz.cy;
+			}
+
+			sz.cx = pControl->GetFixedWidth();
+			if (sz.cx == 0) sz.cx = szAvailable.cx - rcPadding.left - rcPadding.right;
+			if (sz.cx < 0) sz.cx = 0;
+			if (sz.cx < pControl->GetMinWidth()) sz.cx = pControl->GetMinWidth();
+			if (sz.cx > pControl->GetMaxWidth()) sz.cx = pControl->GetMaxWidth();
+
+			RECT rcCtrl = { iPosX + rcPadding.left, iPosY + rcPadding.top, iPosX + rcPadding.left + sz.cx, iPosY + sz.cy + rcPadding.top + rcPadding.bottom };
+			pControl->SetPos(rcCtrl);
+			CheckControl(pControl);
+
+			iPosY += sz.cy + m_iChildPadding + rcPadding.top + rcPadding.bottom;
+			cyNeeded += sz.cy + rcPadding.top + rcPadding.bottom;
+			szRemaining.cy -= sz.cy + m_iChildPadding + rcPadding.bottom;
+		}
+		cyNeeded += (nEstimateNum - 1) * m_iChildPadding;
+
+		// Process the scrollbar
+		ProcessScrollBar(rc, 0, cyNeeded);
+	}
+
+	void CLayerLayoutUI::EnsureVisible(int nIndex)
+	{
+		if(!m_bEnsureVisible) return;
+		RECT rcItem = GetItemAt(nIndex)->GetPos();
+		RECT rcList = this->GetPos();
+		RECT rcListInset = this->GetInset();
+
+		rcList.left += rcListInset.left;
+		rcList.top += rcListInset.top;
+		rcList.right -= rcListInset.right;
+		rcList.bottom -= rcListInset.bottom;
+
+		if( rcItem.left < rcList.left && rcItem.right > rcList.right ) return;
+		if( rcItem.left >= rcList.left && rcItem.right < rcList.right ) return;
+		int dx = 0;
+		if( rcItem.left < rcList.left )
+			dx =  rcItem.left - rcList.left;
+		else if( rcItem.right > rcList.right ) 
+			dx = rcItem.right - rcList.right;
+		if( dx == 0 ) return;
+		SIZE sz = this->GetScrollPos();
+		this->SetScrollPos(CSize(sz.cx + dx, sz.cy));
+	}
+
+	//Add,Del,Sel controls
+	//--------------------------------------------------------------------------------------------
+	bool CLayerLayoutUI::Add(CControlUI* pControl)
+	{
+		if(pControl == NULL) return false;
+		if(_tcscmp(pControl->GetClass(), TEXT("LayerUI") ) == 0)
+		{
+			CLayerUI* pLayer = (CLayerUI*)(pControl->GetInterface(DUI_CTR_LAYERITEM));
+			ShareInfo(pControl,m_LayerInfo);
+			AttachEvent(pControl,pLayer,(EventFunc)&CLayerUI::OnChildEvent,true);
+		}
+		else if(_tcscmp(pControl->GetClass(), TEXT("GroupUI") ) == 0)
+		{
+			ShareInfo(pControl,m_LayerInfo);
+		}
+		return __super::Add(pControl);
+	}
+
+	bool CLayerLayoutUI::Remove(CControlUI * pControl)
+	{
+		if (pControl == NULL) return false;
+		for (int it = 0; it < m_items.GetSize(); it++)
+		{
+			if (static_cast<CControlUI*>(m_items[it]) == pControl)
+			{
+				NeedUpdate();
+				if (m_LayerInfo.get())
+				{
+					m_LayerInfo->mapControl.erase(pControl);
+					//ZRemove(pControl);
+				}
+				if (m_bAutoDestroy)
+				{
+					if (m_bDelayedDestroy && m_pManager)
+						m_pManager->AddDelayedCleanup(pControl);
+					else delete pControl;
+				}
+				return m_items.Remove(it);
+			}
+		}
+
+		return false;
+	}
+
+	void CLayerLayoutUI::RemoveAll()
+	{
+		m_MapSelControl.clear();
+		m_LayerInfo->mapControl.clear();
+		mapZCI.clear();
+		mapZIC.clear();
+		__super::RemoveAll();
+	}
+
+	bool CLayerLayoutUI::SelectItem(UINT nZIndex)
+	{
+
+		CLayerUI* p= GetZItem(nZIndex);
+		if(p)
+		{
+			m_MapSelControl[p] = p;
+			Invalidate();
+		}
 		return true;
 	}
 
-	void CLayerLayoutUI::DoPaint(HDC hDC, const RECT& rcPaint)
+	bool CLayerLayoutUI::SelectExcludeItem(UINT nZIndex)
 	{
-		CContainerUI::DoPaint(hDC,rcPaint);
-		PaintMoveItem(hDC);
-	}
 
-	void CLayerLayoutUI::PaintBkColor(HDC hDC)
-	{
-		__super::PaintBkColor(hDC);
-		if(m_LayerInfo.get())
+		CLayerUI* p= GetZItem(nZIndex);
+		if(p)
 		{
-			//paint selected layer or group
-			if(m_LayerInfo->dwItemSelectedBkColor && m_MapSelControl.size())
-			{
-				for(MapSelIt iter = m_MapSelControl.begin(); iter != m_MapSelControl.end(); ++iter)
-				{
-					RECT rcItem = iter->first->GetPos();
-					int offsetl = max(m_nBorderSize, m_rcInset.left);
-					int offsetr = max(m_nBorderSize, m_rcInset.right);
-					rcItem.left = m_rcItem.left + offsetl;
-					rcItem.right = m_rcItem.right - offsetr;
-					CRenderEngine::DrawColor(hDC, rcItem, GetAdjustColor(m_LayerInfo->dwItemSelectedBkColor));
-				}
-			}
-			if(m_LayerInfo->dwItemHotBkColor && m_pHotControl != NULL)
-			{
-				RECT rcItem = m_pHotControl->GetPos();
-				CRenderEngine::DrawColor(hDC, rcItem, GetAdjustColor(m_LayerInfo->dwItemHotBkColor));
-			}
+			m_MapSelControl.erase(p);
+			Invalidate();
 		}
+		return true;
 	}
 
-	void CLayerLayoutUI::PaintBkImage(HDC hDC)
+	void CLayerLayoutUI::SelectAll()
+	{}
+
+	void CLayerLayoutUI::SelectNone()
 	{
-		__super::PaintBkImage(hDC);
+		m_MapSelControl.clear();
+		Invalidate();
 	}
 
-	void CLayerLayoutUI::PaintStatusImage(HDC hDC)
+	void CLayerLayoutUI::ChangeZOrder(CLayerUI * src, CLayerUI * dst)
 	{
-		__super::PaintStatusImage(hDC);
-		if(m_LayerInfo.get())
+	}
+
+	void CLayerLayoutUI::AddEnd(CLayerUI * src)
+	{
+		UINT size =(UINT)mapZIC.size()+1;
+		mapZIC[size] = src;
+		mapZCI[src] = size;
+		src->SetZ(size);
+		std::map<UINT, CLayerUI*> mapzo;
+		mapzo[size]= src;
+		slot_ZItemsChange.Active(mapzo);
+	}
+
+	CLayerUI* CLayerLayoutUI::GetZItem(UINT z)
+	{
+		auto item = mapZIC.find(z);
+		if( item != mapZIC.end())
+			return item->second;
+		return nullptr;
+	}
+
+	//internal functions
+	//--------------------------------------------------------------------------------------------
+	void CLayerLayoutUI::MoveItem(int nSrcIndex, int nDesIndex)
+	{
+		if ((nSrcIndex == nDesIndex) || (nSrcIndex<0) || (nDesIndex<0))
 		{
-			//paint selected layer or group
-			if(!m_LayerInfo->sItemSelectedImage.IsEmpty() && m_MapSelControl.size())
+			return;
+		}
+
+		int nItemCount = m_items.GetSize();
+		if (nItemCount <= nSrcIndex || nItemCount <= nDesIndex)
+		{
+			return;
+		}
+
+		m_items.Move(nSrcIndex, nDesIndex);
+
+		NeedUpdate();
+	}
+
+	void CLayerLayoutUI::MoveItem()
+	{
+		if(m_miInfo.dst)
+		{
+			ASSERT(m_miInfo.gp_dst);
+			CContainerUI* pLayout = nullptr;
+			CControlUI* pMove = nullptr;
+			for(auto iter = m_MapSelControl.begin(); iter != m_MapSelControl.end(); ++iter)
 			{
-				for(MapSelIt iter = m_MapSelControl.begin(); iter != m_MapSelControl.end(); ++iter)
+				pMove = iter->first;
+				pLayout = GetParentLayout(pMove);
+				if(pLayout)
 				{
-					RECT rcItem = iter->first->GetPos();
-					int offsetl = max(m_nBorderSize, m_rcInset.left);
-					int offsetr = max(m_nBorderSize, m_rcInset.right);
-					rcItem.left = m_rcItem.left + offsetl;
-					rcItem.right = m_rcItem.right - offsetr;
-					if (!DrawImage(hDC, rcItem, (LPCTSTR)m_LayerInfo->sItemSelectedImage))
+					if(iter->first->GetInterface(DUI_CTR_GROUPHEADER))
 					{
-						m_LayerInfo->sItemSelectedImage.Empty();
-						break;
+						// pLayout is GroupUI
+						pMove = pLayout;
+						pLayout = (CGroupUI*)GetParentLayout(pMove);
+					}
+					pLayout->RemoveNotDestroy(pMove);
+					if(m_miInfo.bGroup)
+					{
+						m_miInfo.gp_dst->Add(pMove);
+					}
+					else
+					{
+						int index = m_miInfo.gp_dst->GetItemIndex(m_miInfo.dst);
+						if(index == -1) continue;
+						if(m_miInfo.bTop)
+							m_miInfo.gp_dst->AddAt(pMove,index);
+						else
+							m_miInfo.gp_dst->AddAt(pMove,++index);
 					}
 				}
 			}
-			if(!m_LayerInfo->sItemHotImage.IsEmpty() && m_pHotControl != NULL)
-			{
-				RECT rcItem = m_pHotControl->GetPos();
-				if (!DrawImage(hDC, rcItem, (LPCTSTR)m_LayerInfo->sItemHotImage))
-					m_LayerInfo->sItemHotImage.Empty();
-			}
+			m_miInfo.gp_dst->NeedUpdate();
 		}
-
-	}
-
-	void CLayerLayoutUI::PaintText(HDC hDC)
-	{
-		__super::PaintText(hDC);
-	}
-
-	void CLayerLayoutUI::PaintBorder(HDC hDC)
-	{
-		__super::PaintBorder(hDC);
-	}
-
-	void CLayerLayoutUI::PaintMoveItem(HDC hDC)
-	{
-		Graphics g(hDC);
-		g.SetClip(Rect(m_rcItem.left, m_rcItem.top, m_rcItem.right, m_rcItem.bottom));
-		if(m_hCursor.bDrag)
-		{
-			int heigh = (int)m_hCursor.pBitmap->GetHeight();
-			POINT pt = { m_hCursor.ptOffset.x, m_hCursor.ptMove.y - m_hCursor.ptOffset.y };
-			if (pt.y < m_rcItem.top)
-				pt.y = m_rcItem.top;
-			else if (pt.y > m_rcItem.bottom - heigh)
-				pt.y = m_rcItem.bottom - heigh;
-			g.DrawImage(m_hCursor.pBitmap, pt.x, pt.y);
-		}
-		if (m_miInfo.nLinePos && m_LayerInfo.get())
-		{
-			Pen pen(Color(m_LayerInfo->dwItemMoveColor));
-			CRect rcLine = m_rcItem;
-			if (m_miInfo.bGroup)
-			{
-				CRect rc = GetFitLayoutRc(m_miInfo.dst->GetPos());
-				rcLine.top = rc.top;
-				rcLine.bottom = rc.bottom;
-			}
-			else
-			{
-				rcLine.top = m_miInfo.nLinePos - 1;
-				rcLine.bottom = m_miInfo.nLinePos + 1;
-			}
-			g.DrawLine(&pen, Point(rcLine.left+1, rcLine.top), Point(rcLine.left+1, rcLine.bottom));
-			g.DrawLine(&pen, Point(rcLine.left+1, rcLine.top), Point(rcLine.right-1, rcLine.top));
-			g.DrawLine(&pen, Point(rcLine.left+1, rcLine.bottom), Point(rcLine.right-1, rcLine.bottom));
-			g.DrawLine(&pen, Point(rcLine.right-1, rcLine.top), Point(rcLine.right-1, rcLine.bottom));
-		}
-	}
-
-	bool CLayerLayoutUI::DrawImage(HDC hDC, const RECT &rcItem, LPCTSTR pStrImage, LPCTSTR pStrModify)
-	{
-		return CRenderEngine::DrawImageString(hDC, m_pManager, rcItem, m_rcPaint, pStrImage, pStrModify);
-	}
-
-	CControlUI* CLayerLayoutUI::GetCurSel()
-	{
-		return NULL;
-	}
-
-	bool CLayerLayoutUI::SelectItem(int nIndex, bool bTakeFocus)
-	{
-		//int iOldSel = m_iCurSel;
-
-		//int nCount = GetCount();
-
-		//if (nIndex < 0 && nIndex > nCount-1) return false;
-
-		//CControlUI* pControl = GetItemAt(nIndex);
-		//if (!pControl) return false;
-
-		//if (!pControl->IsVisible() || !pControl->IsEnabled())
-		//	return false;
-
-		//m_iCurSel = nIndex;
-		//if(m_MapSelControl) m_MapSelControl->Invalidate();
-		//m_MapSelControl = pControl;
-		//m_MapSelControl->Invalidate();
-		//EnsureVisible(m_iCurSel);
-
-		//if (bTakeFocus)
-		//{
-		//	pControl->SetFocus();
-		//}
-
-		//if (m_pManager)
-		//{
-		//	TNotifyUI notify;
-		//	notify.pSender = this;
-		//	notify.sType = DUI_MSGTYPE_ITEMSELECT;
-		//	notify.wParam = m_iCurSel;
-		//	notify.lParam = iOldSel;
-		//	/*if(this->OnNotify)
-		//	OnNotify(&notify);*/
-		//	m_pManager->SendNotify(notify);
-
-		//}
-
-		return true;
+		m_miInfo.Clear();
 	}
 
 	CControlUI* CLayerLayoutUI::PtHitControl(POINT ptMouse, int &nIndex)
@@ -1460,8 +1563,8 @@ namespace DirectUI
 		CControlUI* pControl = NULL;
 		if (m_LayerInfo.get())
 		{
-			MapCtl& mapControl = m_LayerInfo->mapControl;
-			MapCtlIt iter = std::find_if(mapControl.begin(), mapControl.end(),
+			auto& mapControl = m_LayerInfo->mapControl;
+			auto iter = std::find_if(mapControl.begin(), mapControl.end(),
 				MapControlFind(ptMouse,m_miInfo));
 			if(iter != mapControl.end()){
 				pControl = iter->first;
@@ -1470,89 +1573,41 @@ namespace DirectUI
 		return pControl;
 	}
 
-	bool CLayerLayoutUI::CheckRectInvalid(RECT &rc)
-	{
-		if(rc.right < rc.left || rc.bottom < rc.top)
-			return true;
-		return false;
-	}	
-
-	void CLayerLayoutUI::EnsureVisible(int nIndex)
-	{
-		if(!m_bEnsureVisible) return;
-		RECT rcItem = GetItemAt(nIndex)->GetPos();
-		RECT rcList = this->GetPos();
-		RECT rcListInset = this->GetInset();
-
-		rcList.left += rcListInset.left;
-		rcList.top += rcListInset.top;
-		rcList.right -= rcListInset.right;
-		rcList.bottom -= rcListInset.bottom;
-
-		if(m_bVertical)
-		{
-			if( rcItem.top >= rcList.top && rcItem.bottom < rcList.bottom ) return;
-			if( rcItem.top < rcList.top && rcItem.bottom > rcList.bottom ) return;
-			int dy = 0;
-			if( rcItem.top < rcList.top )
-				dy = rcItem.top - rcList.top; //-
-			else if( rcItem.bottom > rcList.bottom )
-				dy = rcItem.bottom - rcList.bottom;
-			if( dy == 0 ) return;
-			SIZE sz = this->GetScrollPos();
-			this->SetScrollPos(CSize(sz.cx , sz.cy + dy));
-		}
-		else
-		{
-			if( rcItem.left < rcList.left && rcItem.right > rcList.right ) return;
-			if( rcItem.left >= rcList.left && rcItem.right < rcList.right ) return;
-			int dx = 0;
-			if( rcItem.left < rcList.left )
-				dx =  rcItem.left - rcList.left;
-			else if( rcItem.right > rcList.right ) 
-				dx = rcItem.right - rcList.right;
-			if( dx == 0 ) return;
-			SIZE sz = this->GetScrollPos();
-			this->SetScrollPos(CSize(sz.cx + dx, sz.cy));
-		}
-
-	}
-
 	bool CLayerLayoutUI::MakeCursorImage(HDC hDC,const CRect rcItem, const CPoint pt, int alpha)
 	{
-		auto GetEncoderClsid=[](LPCTSTR format, CLSID* pClsid)->int
-		{
-			UINT num= 0;
-			UINT size= 0;
+		//auto GetEncoderClsid=[](LPCTSTR format, CLSID* pClsid)->int
+		//{
+		//	UINT num= 0;
+		//	UINT size= 0;
 
-			ImageCodecInfo* pImageCodecInfo= NULL;
+		//	ImageCodecInfo* pImageCodecInfo= NULL;
 
-			GetImageEncodersSize(&num, &size);
-			if(size== 0)
-			{
-				return -1;
-			}
-			pImageCodecInfo= (ImageCodecInfo*)(malloc(size));
-			if(pImageCodecInfo== NULL)
-			{
-				return -1;
-			}
+		//	GetImageEncodersSize(&num, &size);
+		//	if(size== 0)
+		//	{
+		//		return -1;
+		//	}
+		//	pImageCodecInfo= (ImageCodecInfo*)(malloc(size));
+		//	if(pImageCodecInfo== NULL)
+		//	{
+		//		return -1;
+		//	}
 
-			GetImageEncoders(num, size, pImageCodecInfo);
+		//	GetImageEncoders(num, size, pImageCodecInfo);
 
-			for(UINT j=0; j< num; ++j)
-			{
-				if(wcscmp(pImageCodecInfo[j].MimeType, format)== 0)
-				{
-					*pClsid= pImageCodecInfo[j].Clsid;
-					free(pImageCodecInfo);
-					return j;
-				}
-			}
+		//	for(UINT j=0; j< num; ++j)
+		//	{
+		//		if(wcscmp(pImageCodecInfo[j].MimeType, format)== 0)
+		//		{
+		//			*pClsid= pImageCodecInfo[j].Clsid;
+		//			free(pImageCodecInfo);
+		//			return j;
+		//		}
+		//	}
 
-			free(pImageCodecInfo);
-			return -1;
-		};
+		//	free(pImageCodecInfo);
+		//	return -1;
+		//};
 		if(m_hCursor.pBitmap) m_hCursor.Release();
 		if(!m_hCursor.pBitmap)
 		{
@@ -1603,64 +1658,6 @@ namespace DirectUI
 		return 0;
 	}
 
-	void CLayerLayoutUI::MoveItem(int nSrcIndex, int nDesIndex)
-	{
-		if ((nSrcIndex == nDesIndex) || (nSrcIndex<0) || (nDesIndex<0))
-		{
-			return;
-		}
-
-		int nItemCount = m_items.GetSize();
-		if (nItemCount <= nSrcIndex || nItemCount <= nDesIndex)
-		{
-			return;
-		}
-
-		m_items.Move(nSrcIndex, nDesIndex);
-
-		NeedUpdate();
-	}
-
-	void CLayerLayoutUI::MoveItem()
-	{
-		if(m_miInfo.dst)
-		{
-			ASSERT(m_miInfo.gp_dst);
-			CContainerUI* pLayout = nullptr;
-			CControlUI* pMove = nullptr;
-			for(MapSelIt iter = m_MapSelControl.begin(); iter != m_MapSelControl.end(); ++iter)
-			{
-				pMove = iter->first;
-				pLayout = GetParentLayout(pMove);
-				if(pLayout)
-				{
-					if(iter->first->GetInterface(DUI_CTR_GROUPHEADER))
-					{
-						// pLayout is GroupUI
-						pMove = pLayout;
-						pLayout = (CGroupUI*)GetParentLayout(pMove);
-					}
-					pLayout->RemoveNotDestroy(pMove);
-					if(m_miInfo.bGroup)
-					{
-						m_miInfo.gp_dst->Add(pMove);
-					}
-					else
-					{
-						int index = m_miInfo.gp_dst->GetItemIndex(m_miInfo.dst);
-						if(index == -1) continue;
-						if(m_miInfo.bTop)
-							m_miInfo.gp_dst->AddAt(pMove,index);
-						else
-							m_miInfo.gp_dst->AddAt(pMove,++index);
-					}
-				}
-			}
-			m_miInfo.gp_dst->NeedUpdate();
-		}
-		m_miInfo.Clear();
-	}
-
 	CRect CLayerLayoutUI::GetFitLayoutRc(CRect rcItem)
 	{
 		rcItem.left = m_rcItem.left;
@@ -1668,22 +1665,22 @@ namespace DirectUI
 		return rcItem;
 	}
 
-	void CZOrder::ChangeZOrder(CLayerUI * src, CLayerUI * dst)
+	bool CLayerLayoutUI::CheckRectInvalid(RECT &rc)
 	{
-	}
+		if(rc.right < rc.left || rc.bottom < rc.top)
+			return true;
+		return false;
+	}	
 
-	void CZOrder::AddEnd(CLayerUI * src)
+	std::vector<CLayerUI*> CLayerLayoutUI::MakeSelectItems()
 	{
-		UINT size = mapZIC.size()+1;
-		mapZIC[size] = src;
-		mapZCI[src] = size;
-		src->SetZ(size);
-	}
-
-	void CZOrder::RemoveAll()
-	{
-		mapZCI.clear();
-		mapZIC.clear();
+		std::vector<CLayerUI*> vecLayers;		
+		for(auto iter = m_MapSelControl.begin();iter!=m_MapSelControl.end();++iter)
+		{
+			CLayerUI* p = (CLayerUI*)iter->first->GetInterface(DUI_CTR_LAYERITEM);
+			if(p) vecLayers.push_back(p);
+		}
+		return vecLayers;
 	}
 
 }//namespace DirectUI

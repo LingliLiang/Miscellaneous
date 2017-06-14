@@ -306,6 +306,7 @@
     <Attribute name="dbfocuse" default="false" type="BOOL" comment="双击进入编辑"/>
     <Attribute name="returnend" default="false" type="BOOL" comment="enter键时结束编辑"/>
     <Attribute name="escend" default="false" type="BOOL" comment="esc键时结束编辑"/>
+    <Attribute name="edittextcolor" default="0x00000000" type="DWORD" comment="edit编辑时的文字颜色,如(0xFFFFFFFF)"/>
   </Edit>
 	<ScrollBar parent="Control" notifies="timer menu scrolled windowinit(root)">
 		<Attribute name="name" default="" type="STRING" comment="控件名字，同一窗口内必须唯一，如(testbtn)"/>

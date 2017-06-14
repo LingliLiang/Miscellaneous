@@ -19,20 +19,6 @@ namespace DirectUI
 	class CGroupHeaderUI;
 	class CGroupUI;
 	class CLayerLayoutUI;
-	
-	class CZOrder
-	{
-	public:
-		void ChangeZOrder(CLayerUI* src, CLayerUI* dst);
-		void AddEnd(CLayerUI* src);
-		void AddAt(UINT z, CLayerUI* src);
-		void Remove(CLayerUI* src);
-		void RemoveAll();
-
-		std::map<UINT, CLayerUI*> mapZIC;
-		std::map<CLayerUI*, UINT> mapZCI;
-		CFuncSlot_1<std::map<UINT, CLayerUI*>> ChangeItems;
-	};
 
 	typedef struct _tagControlPosInfo
 	{
@@ -43,9 +29,6 @@ namespace DirectUI
 		{
 		}
 	}ControlPosInfo;
-	typedef std::map<CControlUI*, ControlPosInfo> MapCtl;
-	typedef std::map<CControlUI*, ControlPosInfo>::value_type MapCtlVt;
-	typedef std::map<CControlUI*, ControlPosInfo>::iterator MapCtlIt;
 
 	typedef struct _tagMoveItemInfo
 	{
@@ -53,7 +36,6 @@ namespace DirectUI
 		CControlUI* src; //moving selected item
 		CControlUI* dst; //
 		CContainerUI* gp_dst;
-		//int gp_dst_pos;
 		BOOL bGroup;
 		BOOL bTop;
 		int nLinePos;
@@ -72,6 +54,7 @@ namespace DirectUI
 	typedef struct _tagLayerInfo
 	{
 		CRect rcLayerInset;
+		CRect rcDragTest;
 		size_t nLayerHeight; //default layer height
 		size_t nGroupHeaderHeight;  //default group...
 
@@ -83,11 +66,10 @@ namespace DirectUI
 		//CString sItemNormalImage; //bkimage
 		CString sItemHotImage;
 		CString sItemSelectedImage;
-		CLayerLayoutUI* pLayout;
-		MapCtl mapControl;
-		CZOrder zorder;
+		CLayerLayoutUI* pLayout;//main layout pointer
+		std::map<CControlUI*, ControlPosInfo> mapControl; //control pos map
 		_tagLayerInfo()
-			:nLayerHeight(30),nGroupHeaderHeight(30),
+			:rcDragTest(0,0,4,4),nLayerHeight(30),nGroupHeaderHeight(30),
 			dwItemMoveColor(0xFFffae00),dwItemHotBkColor(0xFF6B9299),
 			dwItemSelectedBkColor(0xFF258C9C),pLayout(0)
 		{}
@@ -110,7 +92,6 @@ namespace DirectUI
 		public:
 			typedef bool (IInterMessage::*EventFunc)(void*);
 
-			//virtual void MessageAcross(TEventUI* event_,InterNotifyMsg what); // 
 			virtual void Message(TEventUI* event_,InterNotifyMsg what) = 0;
 			virtual bool OnChildEvent(void* event_in) = 0;
 		protected:
@@ -151,6 +132,7 @@ namespace DirectUI
 		bool m_bDrag;
 		UINT m_nZ;
 		LPVOID m_ptr;
+		POINT m_ptLBDown;
 	};
 
 	class CGroupHeaderUI : public CHorizontalLayoutUI
@@ -239,55 +221,35 @@ namespace DirectUI
 			return NULL;
 		}
 
-		//template <typename T> bool BindFunc(int LayerOper, void(T::*pf)(void), T* p)
-		//{
-		//	if(LayerOper == Inter::LayerItemDrop)
-		//	{
-		//		std::function<void(void)> func;
-		//		m_funcDrop.push_back(func);
-		//		*(m_funcDrop.rbegin()) = std::bind(pf,p);
-		//	}
-		//	else if(LayerOper == Inter::LayerItemSelect)
-		//	{
-		//		std::function<void(void)> func;
-		//		m_funcSelect.push_back(func);
-		//		*(m_funcSelect.rbegin()) = std::bind(pf,p);
-		//	}
-		//	return true;
-		//}
-
 	protected:
+		//IInterMessage
 		virtual void Message(TEventUI* event_, Inter::InterNotifyMsg what);
 		virtual bool OnChildEvent(void* event_in);
+
 	public:
 
-		void SetVerticalMode(bool bVertical);
-		bool GetVerticalMode() const;
+		void SetMultiSel(bool bFlag);
+		bool GetMultiSel() const;
 
 		//also effect to group
 		void SetLayerSelImage(LPCTSTR pstrImage);
 		CUIString GetLayerSelImage();
 		void SetLayerHotImage(LPCTSTR pstrImage);
 		CUIString GetLayerHotImage();
-
 		void SetMoveLineColor(DWORD color);
 		DWORD GetMoveLineColor();
 		void SetLayerSelColor(DWORD color);
 		DWORD GetLayerSelColor();
 		void SetLayerHotColor(DWORD color);
 		DWORD GetLayerHotColor();
-
 		void SetLayerDefaultHeight(int nSize);
 		size_t GetLayerDefaultHeight();
 		void SetGroupDefaultHeight(int nSize);
 		size_t GetGroupDefaultHeight();
-
 		void SetLayerInset(RECT rc);
 		CRect GetLayerInset();
-
 		void SetAttribute(LPCTSTR pstrName, LPCTSTR pstrValue);
 		void SetItemAttribute(LPCTSTR pstrName, LPCTSTR pstrValue);
-		void DoEvent(TEventUI& event_);
 
 		virtual void DoPaint(HDC hDC, const RECT& rcPaint);
 		virtual void PaintBkColor(HDC hDC);
@@ -295,36 +257,45 @@ namespace DirectUI
 		virtual void PaintStatusImage(HDC hDC);
 		virtual void PaintText(HDC hDC);
 		virtual void PaintBorder(HDC hDC);
-
 		virtual void PaintMoveItem(HDC hDC);
-
-		CControlUI* GetCurSel();
-		bool SelectItem(int nIndex, bool bTakeFocus = false);
-
 		bool DrawImage(HDC hDC,const RECT &rcItem, LPCTSTR pStrImage, LPCTSTR pStrModify = NULL);
-
-		bool CheckRectInvalid(RECT &rc);
-
+		
+		void DoEvent(TEventUI& event_);
+		void SetPos(RECT rc);
 		void EnsureVisible(int nIndex);
 
-		void SetPos(RECT rc);
+		bool SelectItem(UINT nZIndex);
+		bool SelectExcludeItem(UINT nZIndex);
+		void SelectAll();
+		void SelectNone();
 		bool Add(CControlUI* pControl);
 		bool Remove(CControlUI* pControl);
 		bool RemoveNotDestroy(CControlUI* pControl);
 		void RemoveAll();
+		void ChangeZOrder(CLayerUI* src, CLayerUI* dst);
+		void AddEnd(CLayerUI* src);
+		void AddAt(UINT z, CLayerUI* src);
+		void Remove(CLayerUI* src);
+		CLayerUI* GetZItem(UINT z);
 
-		void MoveItem();
+		CFuncSlot_1<std::vector<CLayerUI*>> slot_SelectItems; //Fire select items function
+		CFuncSlot_1<std::map<UINT, CLayerUI*>> slot_ZItemsChange;//add z-order changed callback
+
 	protected:
 		void MoveItem(int nSrcIndex, int nDesIndex);
+		void MoveItem();
 
 		virtual CControlUI* PtHitControl(POINT ptMouse, int &nIndex);
 		virtual CControlUI* PtRoundControl(POINT ptMouse);
 		bool MakeCursorImage(HDC hDC, const CRect rcItem, const CPoint pt, int alpha = 200);
 		inline CRect GetFitLayoutRc(CRect rcItem);
-
-		void ZChangedItems(std::map<UINT, CLayerUI*> items);
-	protected:
-
+		bool CheckRectInvalid(RECT &rc);
+		std::vector<CLayerUI*> MakeSelectItems();
+private:
+		std::map<UINT, CLayerUI*> mapZIC;
+		std::map<CLayerUI*, UINT> mapZCI;
+		std::map<CControlUI*, void*> m_MapSelControl;
+		MoveItemInfo m_miInfo;
 		struct _tagCursorRes
 		{
 			HCURSOR hCursor;
@@ -346,22 +317,12 @@ namespace DirectUI
 			}
 		} m_hCursor;
 
-		CFuncSlot_2<UINT, LPVOID> ZorderModify; // Z index & Layer Ptr Pointer;
-		CFuncSlot_1<std::map<UINT, CLayerUI*>> SelectItems; //Fire select items function
-
-		typedef std::map<CControlUI*, void*> MapSel;
-		typedef std::map<CControlUI*, void*>::value_type MapSelVt;
-		typedef std::map<CControlUI*, void*>::iterator MapSelIt;
-		MapSel m_MapSelControl;
 		CControlUI* m_pHotControl;
-		bool m_bMultiSel;
-
-		MoveItemInfo m_miInfo;
 
 		POINT ptLastMouse;
 		RECT m_rcNewPos;
 
-		bool m_bVertical;
+		bool m_bMultiSel;
 		bool m_bEnsureVisible; //选中的时候是否移动位置
 	};
 
