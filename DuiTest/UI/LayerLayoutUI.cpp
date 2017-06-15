@@ -136,6 +136,18 @@ namespace DirectUI
 		return std::make_pair(p1,p2);
 	}
 
+	template<typename Tfirst,typename Tsecond>
+	class TMapFind
+	{
+	public:
+		TMapFind(Tsecond& ts) :ts_(ts) {}
+		bool operator()(typename const std::map<Tfirst, Tsecond>::value_type &pair)
+		{
+			return pair.second == ts_;
+		}
+	private:
+		Tsecond& ts_;
+	};
 	class MapControlFind
 	{
 	public:
@@ -436,7 +448,7 @@ namespace DirectUI
 				if (m_LayerInfo.get())
 				{
 					m_LayerInfo->mapControl.erase(pControl);
-					//m_LayerInfo->pLayout->ZRemove(pControl);
+					m_LayerInfo->pLayout->RemoveLayer((CLayerUI*)pControl);
 				}
 				if (m_bAutoDestroy)
 				{
@@ -730,7 +742,7 @@ namespace DirectUI
 	//CLayerLayoutUI
 
 	CLayerLayoutUI::CLayerLayoutUI() :
-		m_bMultiSel(false),m_pHotControl(NULL)
+	m_bMultiSel(false),m_pHotControl(NULL),m_bTrackEvents(true)
 	{
 		m_LayerInfo = std::make_shared<_tagLayerInfo>();
 		m_LayerInfo->pLayout = this;
@@ -754,6 +766,7 @@ namespace DirectUI
 	void CLayerLayoutUI::Message(TEventUI* event_, InterNotifyMsg what)
 	{
 		// 处理所有的子控件内部消息
+		if(!m_bTrackEvents) return;
 		switch(what)
 		{
 		case NeedLayoutUpdate: 
@@ -824,6 +837,16 @@ namespace DirectUI
 	bool CLayerLayoutUI::GetMultiSel() const
 	{
 		return m_bMultiSel;
+	}
+	
+	void CLayerLayoutUI::SetTrackEvent(bool bFlag)
+	{
+		m_bTrackEvents = bFlag;
+	}
+
+	bool CLayerLayoutUI::GetTrackEvent() const
+	{
+		return m_bTrackEvents;
 	}
 
 	void CLayerLayoutUI::SetLayerSelImage(LPCTSTR pstrImage)
@@ -941,6 +964,8 @@ namespace DirectUI
 		}
 		else if( _tcscmp(pstrName, _T("multisel")) == 0 )
 			SetMultiSel(_tcscmp(pstrValue, _T("true")) == 0);
+		else if( _tcscmp(pstrName, _T("trackevent")) == 0 )
+			SetTrackEvent(_tcscmp(pstrValue, _T("true")) == 0);
 		else if( _tcscmp(pstrName, _T("layerselimage")) == 0 )
 			SetLayerSelImage(pstrValue);
 		else if( _tcscmp(pstrName, _T("layerhotimage")) == 0 )
@@ -1026,6 +1051,10 @@ namespace DirectUI
 					int offsetr = max(m_nBorderSize, m_rcInset.right);
 					rcItem.left = m_rcItem.left + offsetl;
 					rcItem.right = m_rcItem.right - offsetr;
+					if (m_pVerticalScrollBar && !m_pVerticalScrollBar->IsVisible())
+					{
+						rcItem.right -= m_pVerticalScrollBar->GetFixedWidth();
+					}
 					CRenderEngine::DrawColor(hDC, rcItem, GetAdjustColor(m_LayerInfo->dwItemSelectedBkColor));
 				}
 			}
@@ -1067,6 +1096,10 @@ namespace DirectUI
 					int offsetr = max(m_nBorderSize, m_rcInset.right);
 					rcItem.left = m_rcItem.left + offsetl;
 					rcItem.right = m_rcItem.right - offsetr;
+					if (m_pVerticalScrollBar && !m_pVerticalScrollBar->IsVisible())
+					{
+						rcItem.right -= m_pVerticalScrollBar->GetFixedWidth();
+					}
 					if (!DrawImage(hDC, rcItem, (LPCTSTR)m_LayerInfo->sItemSelectedImage))
 					{
 						m_LayerInfo->sItemSelectedImage.Empty();
@@ -1381,6 +1414,45 @@ namespace DirectUI
 		ProcessScrollBar(rc, 0, cyNeeded);
 	}
 
+	void CLayerLayoutUI::SetScrollPos(SIZE szPos)
+	{
+		int cx = 0;
+		int cy = 0;
+		if (m_pVerticalScrollBar && m_pVerticalScrollBar->IsVisible()) 
+		{
+			int iLastScrollPos = m_pVerticalScrollBar->GetScrollPos();
+			m_pVerticalScrollBar->SetScrollPos(szPos.cy);
+			cy = m_pVerticalScrollBar->GetScrollPos() - iLastScrollPos;
+		}
+
+		if (m_pHorizontalScrollBar && m_pHorizontalScrollBar->IsVisible())
+		{
+			int iLastScrollPos = m_pHorizontalScrollBar->GetScrollPos();
+			m_pHorizontalScrollBar->SetScrollPos(szPos.cx);
+			cx = m_pHorizontalScrollBar->GetScrollPos() - iLastScrollPos;
+		}
+
+		if (cx == 0 && cy == 0) return;
+
+		RECT rcPos;
+		for (int it2 = 0; it2 < m_items.GetSize(); it2++)
+		{
+			CControlUI* pControl = static_cast<CControlUI*>(m_items[it2]);
+			if (!pControl->IsVisible()) continue;
+			if (pControl->IsFloat()) continue;
+
+			rcPos = pControl->GetPos();
+			rcPos.left -= cx;
+			rcPos.right -= cx;
+			rcPos.top -= cy;
+			rcPos.bottom -= cy;
+			pControl->SetPos(rcPos);
+			CheckControl(pControl);
+		}
+
+		Invalidate();
+	}
+
 	void CLayerLayoutUI::EnsureVisible(int nIndex)
 	{
 		if(!m_bEnsureVisible) return;
@@ -1407,6 +1479,43 @@ namespace DirectUI
 
 	//Add,Del,Sel controls
 	//--------------------------------------------------------------------------------------------
+	
+	bool CLayerLayoutUI::SelectItem(UINT nZIndex)
+	{
+		CLayerUI* p= GetZItem(nZIndex);
+		if(p)
+		{
+			m_MapSelControl[p] = p;
+			Invalidate();
+		}
+		return true;
+	}
+
+	bool CLayerLayoutUI::SelectExcludeItem(UINT nZIndex)
+	{
+		CLayerUI* p= GetZItem(nZIndex);
+		if(p)
+		{
+			m_MapSelControl.erase(p);
+			Invalidate();
+		}
+		return true;
+	}
+
+	void CLayerLayoutUI::SelectAll()
+	{
+		for(auto iter = mapZIC.begin();iter!=mapZIC.end();++iter)
+		{
+			m_MapSelControl[iter->second] = iter->second;
+		}
+	}
+
+	void CLayerLayoutUI::SelectNone()
+	{
+		m_MapSelControl.clear();
+		Invalidate();
+	}
+	
 	bool CLayerLayoutUI::Add(CControlUI* pControl)
 	{
 		if(pControl == NULL) return false;
@@ -1434,7 +1543,7 @@ namespace DirectUI
 				if (m_LayerInfo.get())
 				{
 					m_LayerInfo->mapControl.erase(pControl);
-					//ZRemove(pControl);
+					RemoveLayer((CLayerUI*)pControl);
 				}
 				if (m_bAutoDestroy)
 				{
@@ -1453,53 +1562,33 @@ namespace DirectUI
 	{
 		m_MapSelControl.clear();
 		m_LayerInfo->mapControl.clear();
-		mapZCI.clear();
 		mapZIC.clear();
 		__super::RemoveAll();
 	}
 
-	bool CLayerLayoutUI::SelectItem(UINT nZIndex)
+	void CLayerLayoutUI::RemoveSelected()
 	{
-
-		CLayerUI* p= GetZItem(nZIndex);
-		if(p)
+		std::map<CControlUI*, void*> mapSel = m_MapSelControl;
+		for(auto iter = mapSel.begin();iter!=mapSel.end();++iter)
 		{
-			m_MapSelControl[p] = p;
-			Invalidate();
+			CLayerUI* pLayer = (CLayerUI*)(iter->first->GetInterface(DUI_CTR_LAYERITEM));
+			if(pLayer)
+			{
+				CContainerUI* p = GetParentLayout(pLayer);
+				if(p)
+				{
+					m_MapSelControl.erase(pLayer);
+					p->Remove(pLayer);
+				}
+			}
 		}
-		return true;
-	}
-
-	bool CLayerLayoutUI::SelectExcludeItem(UINT nZIndex)
-	{
-
-		CLayerUI* p= GetZItem(nZIndex);
-		if(p)
-		{
-			m_MapSelControl.erase(p);
-			Invalidate();
-		}
-		return true;
-	}
-
-	void CLayerLayoutUI::SelectAll()
-	{}
-
-	void CLayerLayoutUI::SelectNone()
-	{
-		m_MapSelControl.clear();
 		Invalidate();
-	}
-
-	void CLayerLayoutUI::ChangeZOrder(CLayerUI * src, CLayerUI * dst)
-	{
 	}
 
 	void CLayerLayoutUI::AddEnd(CLayerUI * src)
 	{
 		UINT size =(UINT)mapZIC.size()+1;
 		mapZIC[size] = src;
-		mapZCI[src] = size;
 		src->SetZ(size);
 		std::map<UINT, CLayerUI*> mapzo;
 		mapzo[size]= src;
@@ -1512,6 +1601,90 @@ namespace DirectUI
 		if( item != mapZIC.end())
 			return item->second;
 		return nullptr;
+	}
+
+	void CLayerLayoutUI::RemoveLayer(CLayerUI* rmc)
+	{
+		UINT rmz = 0;
+		//auto iter = std::find_if(mapZIC.begin(), mapZIC.end(),TMapFind<UINT, CLayerUI*>(rmc));
+		auto iter = mapZIC.find(rmc->GetZ());
+		if(iter != mapZIC.end())
+		{
+			rmz = iter->first;
+			if(iter->second != rmc) return;
+			//overwirte remove item
+			for(auto iter_ic2 = iter;iter_ic2!=mapZIC.end();NULL)
+			{
+				auto cur_iter = iter_ic2;
+				iter_ic2++;//move to next
+				if(iter_ic2==mapZIC.end())
+				{
+					mapZIC.erase(cur_iter);
+					break;
+				}
+				cur_iter->second = iter_ic2->second;
+				iter_ic2->second->SetZ(cur_iter->first);
+			}
+			iter = mapZIC.find(rmz);
+			std::map<UINT, CLayerUI*> mapzo(iter,mapZIC.end());
+			slot_ZItemsChange.Active(mapzo);
+		}
+	}
+
+	void CLayerLayoutUI::ChangeZOrder(CLayerUI * src, CLayerUI * dst, bool before)
+	{
+		auto iter_src = mapZIC.find(src->GetZ());
+		auto iter_dst = mapZIC.find(dst->GetZ());
+		if(iter_src == mapZIC.end() || iter_src->second != src ||
+			iter_dst == mapZIC.end() || iter_dst->second != dst)
+			return;
+		if(!before)//replace next
+		{
+			iter_dst++;
+		}
+		if(src->GetZ() > dst->GetZ())
+		{
+			for(auto iter_ic2 = iter_src;iter_ic2!=iter_dst;NULL)
+			{
+				auto cur_iter = iter_ic2;
+				iter_ic2--;//move to pre
+				cur_iter->second = iter_ic2->second;
+				cur_iter->second->SetZ(cur_iter->first);
+				mapZOCache[cur_iter->first] = cur_iter->second;
+				if(iter_ic2==iter_dst)
+				{
+					iter_dst->second = src;
+					iter_dst->second->SetZ(iter_dst->first);
+					mapZOCache[iter_dst->first] = iter_dst->second;
+					break;
+				}
+			}
+		}
+		else
+		{
+			for(auto iter_ic2 = iter_src;iter_ic2!=iter_dst;NULL)
+			{
+				auto cur_iter = iter_ic2;
+				iter_ic2++;//move to next
+				if(iter_ic2==iter_dst)
+				{
+					cur_iter->second = src;
+					cur_iter->second->SetZ(cur_iter->first);
+					mapZOCache[cur_iter->first] = cur_iter->second;
+					break;
+				}
+				cur_iter->second = iter_ic2->second;
+				cur_iter->second->SetZ(cur_iter->first);
+				mapZOCache[cur_iter->first] = cur_iter->second;
+			}
+		}
+	}
+
+	void CLayerLayoutUI::LauchChangeZOrder()
+	{
+		if(mapZOCache.empty()) return;
+		slot_ZItemsChange.Active(mapZOCache);
+		mapZOCache.clear();
 	}
 
 	//internal functions
@@ -1557,19 +1730,28 @@ namespace DirectUI
 					if(m_miInfo.bGroup)
 					{
 						m_miInfo.gp_dst->Add(pMove);
+						//not support group yet
+						//ChangeZOrder((CLayerUI*)pMove,(CLayerUI*)m_miInfo.dst,false);
 					}
 					else
 					{
 						int index = m_miInfo.gp_dst->GetItemIndex(m_miInfo.dst);
 						if(index == -1) continue;
 						if(m_miInfo.bTop)
+						{
 							m_miInfo.gp_dst->AddAt(pMove,index);
+							ChangeZOrder((CLayerUI*)pMove,(CLayerUI*)m_miInfo.dst,true);//not support group yet
+						}
 						else
+						{
 							m_miInfo.gp_dst->AddAt(pMove,++index);
+							ChangeZOrder((CLayerUI*)pMove,(CLayerUI*)m_miInfo.dst,false);//not support group yet
+						}
 					}
 				}
 			}
 			m_miInfo.gp_dst->NeedUpdate();
+			LauchChangeZOrder();
 		}
 		m_miInfo.Clear();
 	}

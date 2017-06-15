@@ -32,13 +32,13 @@ namespace DirectUI
 
 	typedef struct _tagMoveItemInfo
 	{
-		std::map<CControlUI*,void*>* pSelControl;
+		std::map<CControlUI*,void*>* pSelControl;//pointer of mainLayout's selected controls
 		CControlUI* src; //moving selected item
-		CControlUI* dst; //
-		CContainerUI* gp_dst;
-		BOOL bGroup;
-		BOOL bTop;
-		int nLinePos;
+		CControlUI* dst; //target clayerui
+		CContainerUI* gp_dst; // target drop layout
+		BOOL bGroup; //is group,and drop end of group
+		BOOL bTop; //is top of dst-control pos
+		int nLinePos; //clac-ed line position of drop to
 		_tagMoveItemInfo() :pSelControl(0), src(0),dst(0), gp_dst(0),
 			bGroup(0),bTop(0),nLinePos(0) {}
 		void Clear(){
@@ -231,7 +231,8 @@ namespace DirectUI
 
 		void SetMultiSel(bool bFlag);
 		bool GetMultiSel() const;
-
+		void SetTrackEvent(bool bFlag);
+		bool GetTrackEvent() const;
 		//also effect to group
 		void SetLayerSelImage(LPCTSTR pstrImage);
 		CUIString GetLayerSelImage();
@@ -263,7 +264,7 @@ namespace DirectUI
 		
 		void DoEvent(TEventUI& event_);
 		void SetPos(RECT rc);
-		//virtual void ProcessScrollBar(RECT rc, int cxRequired, int cyRequired);
+		virtual void SetScrollPos(SIZE szPos);
 		void EnsureVisible(int nIndex);
 
 		bool SelectItem(UINT nZIndex);
@@ -274,11 +275,16 @@ namespace DirectUI
 		bool Remove(CControlUI* pControl);
 		bool RemoveNotDestroy(CControlUI* pControl);
 		void RemoveAll();
-		void ChangeZOrder(CLayerUI* src, CLayerUI* dst);
 		void AddEnd(CLayerUI* src);
 		void AddAt(UINT z, CLayerUI* src);
-		void Remove(CLayerUI* src);
+		void RemoveSelected();
 		CLayerUI* GetZItem(UINT z);
+	protected:
+		void RemoveLayer(CLayerUI* rmc);
+		void ChangeZOrder(CLayerUI* src, CLayerUI* dst, bool before); 
+		void LauchChangeZOrder();
+		std::map<UINT, CLayerUI*> mapZOCache;
+	public:
 
 		CFuncSlot_1<std::vector<CLayerUI*>> slot_SelectItems; //Fire select items function
 		CFuncSlot_1<std::map<UINT, CLayerUI*>> slot_ZItemsChange;//add z-order changed callback
@@ -295,7 +301,6 @@ namespace DirectUI
 		std::vector<CLayerUI*> MakeSelectItems();
 private:
 		std::map<UINT, CLayerUI*> mapZIC;
-		std::map<CLayerUI*, UINT> mapZCI;
 		std::map<CControlUI*, void*> m_MapSelControl;
 		MoveItemInfo m_miInfo;
 		struct _tagCursorRes
@@ -324,6 +329,7 @@ private:
 		POINT ptLastMouse;
 		RECT m_rcNewPos;
 
+		bool m_bTrackEvents;
 		bool m_bMultiSel;
 		bool m_bEnsureVisible; //选中的时候是否移动位置
 	};
