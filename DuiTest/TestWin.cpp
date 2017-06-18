@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "TestWin.h"
 #include "ui\LayerLayoutUI.h"
+#include "UI\UIAnalogStick.h"
 
 
 #define SKINFILE  _T("TestWin.xml");
@@ -22,7 +23,15 @@ CUIString CTestWin::GetSkinFolder()
 
 CControlUI* CTestWin::CreateControl(LPCTSTR strControl)
 {
-	return CLayerLayoutUI::CreateControl(strControl);
+	CControlUI* p = CLayerLayoutUI::CreateControl(strControl);
+	if (!p)
+	{
+		if (_tcsicmp(strControl, DUI_CTR_ANALOGSTICK) == 0)
+		{
+			p = new CAnalogStickUI;
+		}
+	}
+	return p;
 }
 
 void CTestWin::OnClick(TNotifyUI& msg)
