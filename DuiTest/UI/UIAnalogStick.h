@@ -47,7 +47,7 @@ namespace DirectUI
 		Gdiplus::REAL m_fAngle;
 		POINT m_ptCenter;
 		POINT m_ptCurrent;
-		unsigned int m_nAnalogStickCount;
+		unsigned int m_nStickStep;
 		unsigned int m_nStep;
 		SIZE m_szRowcol;
 		RECT m_rcAnalogStickBase;
@@ -57,7 +57,9 @@ namespace DirectUI
 		std::basic_string<TCHAR> m_strAnalogStick;
 		std::basic_string<TCHAR> m_strDirection;
 		HRGN m_hInteracRgn;
-		//Gdiplus::Bitmap m_bmpAnalogStick;
+		std::unique_ptr<Gdiplus::Bitmap> m_bmpAnalogStick;
+		ULONG_PTR m_gdiplusToken;
+		GdiplusStartupInput m_gdiplusStartupInput;
 	};
 }
 

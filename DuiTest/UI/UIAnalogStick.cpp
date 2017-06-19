@@ -7,14 +7,27 @@ const TCHAR*  DUI_CTR_ANALOGSTICK = _T("AnalogStick");
 namespace DirectUI
 {
 	CAnalogStickUI::CAnalogStickUI()
-		:m_nRadius(100),m_uButtonState(0),m_fAngle(0)
+		:m_nRadius(100),m_uButtonState(0),m_fAngle(0),m_nStickStep(0),m_nStep(0),
+		m_bmpAnalogStick(nullptr)
 	{
+		GdiplusStartup(&m_gdiplusToken, &m_gdiplusStartupInput, NULL);
+		::ZeroMemory(&m_szRowcol,sizeof(SIZE));
+		::ZeroMemory(&m_rcAnalogStickBase,sizeof(RECT));
 		m_ptCenter.x = m_ptCenter.y = 0;
 		m_ptCurrent.x = m_ptCurrent.y = 0;
 	}
 
 	CAnalogStickUI::~CAnalogStickUI()
 	{
+		m_bmpAnalogStick.reset(nullptr);
+		try
+		{
+			GdiplusShutdown(m_gdiplusToken);
+		}
+		catch (...)
+		{
+			throw "CAnalogStickUI::~CAnalogStickUI";
+		}
 	}
 
 	LPCTSTR CAnalogStickUI::GetClass() const
@@ -63,6 +76,13 @@ namespace DirectUI
 	void CAnalogStickUI::SetStickImage(LPCTSTR pStrImage)
 	{
 		m_strAnalogStick = pStrImage;
+		if(!m_strAnalogStick.empty())
+		{
+			if(m_bmpAnalogStick.get())	m_bmpAnalogStick.reset(nullptr);
+			CUIString strImage = CPaintManagerUI::GetResourcePath();
+			strImage += m_strAnalogStick.c_str();
+			m_bmpAnalogStick = std::unique_ptr<Gdiplus::Bitmap>(new Gdiplus::Bitmap(strImage));
+		}
 	}
 
 	int	CAnalogStickUI::GetRadius() const
@@ -225,6 +245,7 @@ namespace DirectUI
 		}
 		else if (_tcscmp(pstrName, _T("normalimage")) == 0) SetNormalImage(pstrValue);
 		else if (_tcscmp(pstrName, _T("hotimage")) == 0) SetHotImage(pstrValue);
+		else if (_tcscmp(pstrName, _T("analogstickimage")) == 0) SetStickImage(pstrValue);
 		else CControlUI::SetAttribute(pstrName, pstrValue);		
 	}
 
@@ -236,8 +257,8 @@ namespace DirectUI
 		LONG nXCoord = CenterX - ptMove.x;
 		LONG nYCoord = CenterY - ptMove.y;
 		ULONG Length = (nXCoord * nXCoord) + (nYCoord * nYCoord);
-		REAL ptMoveK = sqrt(REAL(Length));
-		REAL sinf = (REAL)abs(nYCoord) / ptMoveK;
+		REAL ptRadius = sqrt(REAL(Length));
+		REAL sinf = (REAL)abs(nYCoord) / ptRadius;
 		REAL fSlope = asinf(sinf);
 		fAngle = fSlope * 180 / PI;
 		//第一象限90-
@@ -262,54 +283,57 @@ namespace DirectUI
 		}
 
 		m_fAngle = fAngle;
-		DUI__Trace(_T("%f"), m_fAngle);
+		//DUI__Trace(_T("%f"), m_fAngle);
 		if (Length <= m_nRadius * m_nRadius)
 		{
 			m_ptCurrent.x = ptMove.x;
 			m_ptCurrent.y = ptMove.y;
+			m_nStickStep = (unsigned int)((float)m_nStep*(ptRadius/m_nRadius));
 		}
 		else
 		{
 			fAngle -= 90.0;
 			m_ptCurrent.x = CenterX + LONG(m_nRadius*cos(fAngle*PI / 180));
 			m_ptCurrent.y = CenterY + LONG(m_nRadius*sin(fAngle*PI / 180));
+			m_nStickStep = m_nStep -1;
 		}
+		//DUI__Trace(_T("%d"), m_nStickStep);
 	}
 
 	void CAnalogStickUI::PaintStatusImage(HDC hDC)
 	{
 		if (m_ptCenter.x == 0 || m_ptCenter.y == 0)
 			return;
-
+		INT cross = 5;
+		Pen pen(Color::AliceBlue,1);
 		Gdiplus::Graphics graphics(hDC);
 		graphics.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
-		Matrix m;
-		PointF ptCenter(m_rcItem.left + m_ptCenter.x, m_rcItem.top + m_ptCenter.y);
-		m.RotateAt(m_fAngle, ptCenter);
-		graphics.SetTransform(&m);
-		CUIString strImage = CPaintManagerUI::GetResourcePath();
-		strImage += m_strNormalImage.c_str();
-		Image image(strImage);
-		Rect rcDst(m_rcItem.left, m_rcItem.top, m_rcItem.right - m_rcItem.left, m_rcItem.bottom - m_rcItem.top);
-		RECT rcImgSrc = GetAnalogStickImageRect(0);
-		Rect rcSrc(rcImgSrc.left, rcImgSrc.top, rcImgSrc.right - rcImgSrc.left, rcImgSrc.bottom - rcImgSrc.top);
-		graphics.DrawImage(&image, rcDst, rcSrc.X, rcSrc.Y, rcSrc.Width, rcSrc.Height,Unit::UnitPixel);
-		graphics.ResetTransform();
-		Pen pen(Color::RosyBrown,2);
-		INT cross = 4;
+		if(m_bmpAnalogStick.get()){
+			Matrix m;
+			PointF ptCenter(m_rcItem.left + m_ptCenter.x, m_rcItem.top + m_ptCenter.y);
+			m.RotateAt(m_fAngle, ptCenter);
+			graphics.SetTransform(&m);
+
+			Rect rcDst(m_rcItem.left, m_rcItem.top, m_rcItem.right - m_rcItem.left, m_rcItem.bottom - m_rcItem.top);
+			RECT rcImgSrc = GetAnalogStickImageRect(m_nStickStep);
+			Rect rcSrc(rcImgSrc.left, rcImgSrc.top, rcImgSrc.right - rcImgSrc.left, rcImgSrc.bottom - rcImgSrc.top);
+			graphics.DrawImage(m_bmpAnalogStick.get(), rcDst, rcSrc.X, rcSrc.Y, rcSrc.Width, rcSrc.Height,UnitPixel);
+			graphics.ResetTransform();
+		}
 		graphics.DrawLine(&pen, Point(m_ptCurrent.x - cross, m_ptCurrent.y), Point(m_ptCurrent.x + cross, m_ptCurrent.y));
 		graphics.DrawLine(&pen, Point(m_ptCurrent.x, m_ptCurrent.y - cross), Point(m_ptCurrent.x, m_ptCurrent.y + cross));
 	}
 
 	RECT CAnalogStickUI::GetAnalogStickImageRect(unsigned int step)
 	{
-		CRect rcSrc = {0};
+		CRect rcSrc;
 		if (step >= m_nStep) return rcSrc;
 		rcSrc = m_rcAnalogStickBase;
 		//0 base
 		unsigned int row = step / m_szRowcol.cy;
 		unsigned int col = step % m_szRowcol.cy;
 		rcSrc.MoveToXY(col*rcSrc.GetWidth(),row*rcSrc.GetHeight());
+		//DUI__Trace(_T("%d %d %d %d"), rcSrc.left,rcSrc.top,rcSrc.GetWidth(),rcSrc.GetHeight());
 		return rcSrc;
 	}
 
