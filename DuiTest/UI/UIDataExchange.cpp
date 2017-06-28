@@ -905,7 +905,8 @@ void CUIDataExchange::SetEnabled(BOOL bEnable)
 	ExDataIter iter = mapExData.begin();
 	while(iter != mapExData.end())
 	{
-		iter->second.pCtl->SetEnabled(bEnable?true:false);
+		if(iter->second.pCtl)
+			iter->second.pCtl->SetEnabled(bEnable?true:false);
 		iter++;
 	}
 }

@@ -232,7 +232,19 @@
 		<Attribute name="thumbsize" default="10,10" type="SIZE" comment="拖动滑块大小,如(10,10)"/>
 		<Attribute name="step" default="1" type="INT" comment="进度步长，如(1)"/>
 	</Slider>
-	<ScrollBar parent="Control" notifies="timer menu scrolled windowinit(root)">
+  <SliderControl parent="Progress" notifies="setfocus killfocus timer menu valuechanged windowinit(root)">
+    <Attribute name="thumbimage" default="" type="STRING" comment="拖动滑块普通状态图片"/>
+    <Attribute name="thumbhotimage" default="" type="STRING" comment="拖动滑块鼠标悬浮状态图片"/>
+    <Attribute name="thumbpushedimage" default="" type="STRING" comment="拖动滑块鼠标按下状态图片"/>
+    <Attribute name="forebkimage" default="" type="STRING" comment="前景图片的下层绘制背景图片"/>
+    <Attribute name="foreimage" default="" type="STRING" comment="前景图片,不是与滑槽大小的图片并isstretchfore为false的话,可以指定source='0,0,0,0'重新设为缩放显示"/>
+    <Attribute name="thumbsize" default="10,10" type="SIZE" comment="拖动滑块大小,如(10,10)"/>
+    <Attribute name="step" default="1" type="INT" comment="进度步长，如(1)"/>
+    <Attribute name="insetslot" default="0,0,0,0" type="RECT" comment="滑动控件的内边距,定位滑槽的位置,如(2,2,2,2),真实的滑槽是先与滑块中心距离相减然后再应用Inset的"/>
+    <Attribute name="thumbcenter" default="10,10" type="SIZE" comment="滑块中心没有设置的话自动计算为滑块大小中心,如(10,10)"/>
+    <Attribute name="reverse" default="true" type="BOOL" comment="反向显示,暂时没有用的参数"/>
+  </SliderControl>
+  <ScrollBar parent="Control" notifies="timer menu scrolled windowinit(root)">
 		<Attribute name="button1normalimage" default="" type="STRING" comment="左或上按钮普通状态图片"/>
 		<Attribute name="button1hotimage" default="" type="STRING" comment="左或上按钮鼠标悬浮状态图片"/>
 		<Attribute name="button1pushedimage" default="" type="STRING" comment="左或上按钮鼠标按下状态图片"/>
