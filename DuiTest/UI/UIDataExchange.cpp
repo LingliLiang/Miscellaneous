@@ -125,6 +125,7 @@ BOOL CXmlPropDataHelper::LoadXml(CXmlFile& xmlFile)
 		CString strText,strElem;
 		std::vector<CString> vecMainNode;
 		CollectionInfo& info= iter->second;
+		info.collValues.clear();
 		int base = info.adapt_base;
 		int count_of_data = 0;
 		SplitCString(info.mainNode,&split,vecMainNode);
@@ -138,7 +139,9 @@ BOOL CXmlPropDataHelper::LoadXml(CXmlFile& xmlFile)
 				strText = xmlFile.GetData();
 			}
 			ullData = _tcstoui64(strText.GetBuffer(),0,10);
-			if(!ullData) break;
+			if(!ullData){
+				break;
+			}
 			strElem.Format(info.adaptNode.GetBuffer(),base);
 			while(xmlFile.FindElem(strElem.GetBuffer()))
 			{
