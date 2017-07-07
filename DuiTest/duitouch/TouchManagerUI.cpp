@@ -62,9 +62,11 @@ namespace DirectUI {
 		m_bMultiTouch = bEnable;
 		if(m_bMultiTouch)
 		{
+			m_uniTouchUtils->SetupTouchHandle(this);
 			m_uniTouchUtils->SetupTouchControl(m_hWndPaint);
 		}else
 		{
+			m_uniTouchUtils->SetupTouchHandle(NULL);
 			m_uniTouchUtils->DestoryTouchControl(m_hWndPaint);
 			m_mapTouchFocus.clear();
 		}
@@ -103,10 +105,10 @@ namespace DirectUI {
 				return true;
 			}
 		}
-
-		if(m_uniTouchUtils->TouchWndProc(m_hWndPaint,uMsg,wParam,lParam))
+		BOOL bTouchHandle = 0;
+		lRes = m_uniTouchUtils->TouchWndProc(m_hWndPaint,uMsg,wParam,lParam,bTouchHandle);
+		if(bTouchHandle)
 		{
-			lRes = 1;
 			return true;
 		}
 		// Custom handling of events
@@ -676,5 +678,77 @@ namespace DirectUI {
 		return false;
 	}
 
+	bool CTouchManagerUI::HandleTouchInput(__in POINT ptScreen, PTOUCHINPUT pIn)
+	{
+		BOOL bPrimary = pIn->dwFlags & TOUCHEVENTF_PRIMARY; // 主触控点,系统鼠标位置将紧跟主触控点
+		auto FireEvent=[&](int type,WPARAM wParam,LPARAM lParam)->void
+		{
+			TEventUI event = { 0 };
+			event.Type = type;
+			event.pSender = m_mapTouchFocus[pIn->dwID].pControl;
+			event.wParam = wParam;
+			event.lParam = lParam;
+			event.ptMouse = ptScreen;
+			event.wKeyState = bPrimary;
+			event.dwTimestamp = ::GetTickCount();
+			if(event.pSender && event.pSender ->GetManager() == this)
+			{
+				DUI__Trace(_T("name %s, value: %x"),event.pSender->GetName().GetData(),event.pSender);
+				event.pSender->Event(event);
+			}
+		};
+		auto touchIter = m_mapTouchFocus.find(pIn->dwID);
+		if(touchIter == m_mapTouchFocus.end())
+		{
+			::ScreenToClient(m_hWndPaint, &ptScreen);
+			m_mapTouchFocus[pIn->dwID].pControl = FindControl(ptScreen);
+		}
+		if(m_mapTouchFocus[pIn->dwID].oldTouchPt.x == ptScreen.x && ptScreen.y == m_mapTouchFocus[pIn->dwID].oldTouchPt.y)
+		{
+			//Same point
+			return false;
+		}
+
+		{
+			//获取设备信息
+			RID_DEVICE_INFO info;
+			ZeroMemory(&info, sizeof(RID_DEVICE_INFO));
+			info.cbSize = sizeof(RID_DEVICE_INFO);
+			UINT size = 0;
+			if (GetRawInputDeviceInfo(pIn->hSource, RIDI_DEVICEINFO, &info, &size)){
+			}else{
+				DWORD err = GetLastError();
+			}
+		}
+
+		//条件判断的下面消息互斥
+		if(pIn->dwFlags & TOUCHEVENTF_DOWN)
+		{
+			::OutputDebugStringA("UIEVENT_TAP_DOWN\n");
+			FireEvent(UIEVENT_TAP_DOWN,0,0);
+		}
+		else if(pIn->dwFlags & TOUCHEVENTF_UP)
+		{
+			::OutputDebugStringA("UIEVENT_TAP_UP\n");
+			FireEvent(UIEVENT_TAP_UP,0,0);
+			m_mapTouchFocus.erase(pIn->dwID);
+		}
+		else if(pIn->dwFlags & TOUCHEVENTF_MOVE)
+		{
+			::OutputDebugStringA("UIEVENT_TAP_MOVE\n");
+			FireEvent(UIEVENT_TAP_MOVE,0,0);
+		}
+
+		if(pIn->dwFlags & TOUCHEVENTF_PALM)//触控事件来自用户的手掌
+		{
+		}
+
+		return true;
+	}
+
+	bool CTouchManagerUI::HandleGestureInput(__in POINT ptScreen, PTOUCHINPUT pIn)
+	{
+		return true;
+	}
 
 }

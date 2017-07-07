@@ -4,15 +4,23 @@
 
 class IHandleTouchInput
 {
+public:
 	virtual bool HandleTouchInput(__in POINT ptScreen, PTOUCHINPUT pIn) = 0;
 	virtual bool HandleGestureInput(__in POINT ptScreen, PTOUCHINPUT pIn) = 0;
 };
 
 class TouchUtils
 {
+	IHandleTouchInput* m_pHandleInput;
 public:
 	static const unsigned int MOUSEEVENTF_FROMTOUCH = 0xff515700;
 	RECT RcThreashold;
+
+	TouchUtils()
+		:m_pHandleInput(NULL)
+	{
+		ZeroMemory(&RcThreashold,sizeof(RcThreashold));
+	}
 
 	/// Multi Touch
 	/// https://msdn.microsoft.com/library/dd940543.aspx
@@ -36,6 +44,12 @@ public:
 		LPARAM p = GetMessageExtraInfo();  
 		return MOUSEEVENTF_FROMTOUCH == (p & MOUSEEVENTF_FROMTOUCH);  
 	} 
+
+	void SetupTouchHandle(IHandleTouchInput* handle)
+	{
+		m_pHandleInput = handle;
+	}
+
 
 	/// http://msdn.microsoft.com/library/dd353241.aspx
 	void SetupGestureControl(HWND hWnd)
@@ -143,6 +157,7 @@ public:
 			{
 				TOUCHINPUT& tin = tins[index];
 				POINT ptScreen = {TOUCH_COORD_TO_PIXEL(tin.x),TOUCH_COORD_TO_PIXEL(tin.y)};
+				if(m_pHandleInput) m_pHandleInput->HandleTouchInput(ptScreen,&tin);
 			}
 		}
 		else  
@@ -157,8 +172,9 @@ public:
 
 	///THIS IS LEGACY TOUCH
 	/// WM_TOUCH handle functions, mutually exclusive WM_GESTURE
-	LRESULT CALLBACK TouchWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+	LRESULT CALLBACK TouchWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandle)
 	{
+		bHandle = 0;
 		LRESULT res = 0;
 		switch(uMsg)
 		{
@@ -172,16 +188,18 @@ public:
 				if (::PtInRect(&RcThreashold,pt)){
 					// no flicks in the region specified by the threashold
 					res =  TABLET_DISABLE_FLICKS;
+					bHandle = 1;
 				}
 			}
 			break;
 		case WM_GESTURE:
 			res = DecodeGesture(wParam, lParam) ? 1 : 0;
+			bHandle = 1;
 			break;
 		case WM_TOUCH:	
 			//如果应用程序处理此消息，则它应返回 0。
-			::OutputDebugStringA("WM_TOUCH\n");
 			res = DecodeTouch(wParam, lParam) ? 0 : 0;
+			bHandle = 1;
 			break;
 		default:
 			break;

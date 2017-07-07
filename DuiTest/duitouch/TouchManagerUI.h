@@ -5,10 +5,17 @@
 #include <map>
 namespace DirectUI {
 
+
+	//TEventUI 的wKeyState标明是非是主触控点
 	typedef enum EVENTTYPE_TOUCH_UI
 	{
 		UIEVENT__TOUCHBEGIN = UIEVENT__LAST,
-		UIEVENT__TAP,
+		//在主触控点的UIEVENT_TAP_DOWN消息
+		//总是比UIEVENT_BUTTONDOWN快一步出现
+		UIEVENT_TAP_DOWN,
+		UIEVENT_TAP_MOVE,
+		UIEVENT_TAP_UP,
+		UIEVENT_TAP,
 		UIEVENT_DBTAP,
 		UIEVENT_PAN,
 		UIEVENT_ROTAE,
@@ -18,7 +25,8 @@ namespace DirectUI {
 	};
 
 	class CTouchManagerUI
-		: public CPaintManagerUI
+		: public CPaintManagerUI,
+		IHandleTouchInput
 	{
 	public:
 		CTouchManagerUI(void);
@@ -30,10 +38,21 @@ namespace DirectUI {
 
 		bool MessageHandler(UINT uMsg, WPARAM wParam, LPARAM lParam, LRESULT& lRes);
 	public:
+		virtual bool HandleTouchInput(__in POINT ptScreen, PTOUCHINPUT pIn);
+		virtual bool HandleGestureInput(__in POINT ptScreen, PTOUCHINPUT pIn);
 		std::unique_ptr<TouchUtils> m_uniTouchUtils;
 	protected:
+		struct TouchInfo
+		{
+			CControlUI* pControl;
+			POINT oldTouchPt;
+			TouchInfo():pControl(NULL)
+			{
+				ZeroMemory(&oldTouchPt,sizeof(POINT));
+			}
+		};
 		typedef DWORD TOUCHID;
-		std::map<TOUCHID,CControlUI*> m_mapTouchFocus;
+		std::map<TOUCHID,TouchInfo> m_mapTouchFocus;
 		BOOL m_bMultiTouch;
 
 	};
