@@ -40,7 +40,7 @@ namespace DirectUI
 		RECT GetSlotInset() const;
 		void SetSlotInset(RECT rc);
 		RECT CalcSlotRc() const;
-
+		SIZE EstimateSize(SIZE szAvailable);
 	protected:
 		SIZE m_szThumb;
 		UINT m_uButtonState;

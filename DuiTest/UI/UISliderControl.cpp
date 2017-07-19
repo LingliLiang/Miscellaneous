@@ -462,4 +462,9 @@ namespace DirectUI
 	{
 		return m_bReverse;
 	}
+
+	SIZE CSliderControlUI::EstimateSize(SIZE szAvailable)
+	{
+		return CControlUI::EstimateSize(szAvailable);
+	}
 }

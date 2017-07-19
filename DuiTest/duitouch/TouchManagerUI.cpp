@@ -1,9 +1,8 @@
 #include "stdafx.h"
 #include "TouchManagerUI.h"
 
-
+#include <Strsafe.h>
 namespace DirectUI {
-
 
 	static UINT MapKeyState()
 	{
