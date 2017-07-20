@@ -1,8 +1,9 @@
 #pragma once
 
-#include <..\directui\Core\UIManager.h>
+#include <directui\Core\UIManager.h>
 #include "TouchUtils.h"
 #include <map>
+#include <memory>
 namespace DirectUI {
 	class CFontLoader
 	{

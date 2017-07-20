@@ -2,6 +2,8 @@
 #include "TouchManagerUI.h"
 
 #include <Strsafe.h>
+
+#pragma comment(lib,"COMCTL32.lib")
 namespace DirectUI {
 
 	static UINT MapKeyState()
@@ -740,6 +742,11 @@ namespace DirectUI {
 
 		if(pIn->dwFlags & TOUCHEVENTF_PALM)//触控事件来自用户的手掌
 		{
+		}
+
+		if (pIn->dwFlags & TOUCHEVENTF_PEN)
+		{
+
 		}
 
 		return true;
