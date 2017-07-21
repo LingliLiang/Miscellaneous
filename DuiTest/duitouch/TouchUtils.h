@@ -150,6 +150,13 @@ public:
 		HTOUCHINPUT hthi = (HTOUCHINPUT)lParam;
 		unsigned int inputs = (unsigned int)wParam;
 		TOUCHINPUT* tins = new  TOUCHINPUT[inputs];
+
+		//设置标识获取更多信息
+		for (auto index = 0U; index < inputs; ++index)
+		{
+			TOUCHINPUT& tin = tins[index];
+			tin.dwMask = TOUCHINPUTMASKF_CONTACTAREA | TOUCHINPUTMASKF_EXTRAINFO | TOUCHINPUTMASKF_TIMEFROMSYSTEM;
+		}
 		bool handled = true;  
 		if(GetTouchInputInfo(hthi, inputs, tins, sizeof(TOUCHINPUT)))
 		{

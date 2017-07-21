@@ -440,7 +440,7 @@ namespace DirectUI {
 			break;
 		case WM_LBUTTONDOWN:
 			{
-				::OutputDebugStringA("WM_LBUTTONDOWN\n");
+				//::OutputDebugStringA("WM_LBUTTONDOWN\n");
 				// We alway set focus back to our app (this helps
 				// when Win32 child windows are placed on the dialog
 				// and we need to remove them on focus change).
@@ -486,7 +486,7 @@ namespace DirectUI {
 			break;
 		case WM_LBUTTONUP:
 			{
-				::OutputDebugStringA("WM_LBUTTONUP\n");
+				//::OutputDebugStringA("WM_LBUTTONUP\n");
 				POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
 				m_ptLastMousePos = pt;
 				if( m_pEventClick == NULL ) break;
@@ -694,7 +694,7 @@ namespace DirectUI {
 			event.dwTimestamp = ::GetTickCount();
 			if(event.pSender && event.pSender ->GetManager() == this)
 			{
-				DUI__Trace(_T("name %s, value: %x"),event.pSender->GetName().GetData(),event.pSender);
+				//DUI__Trace(_T("name %s, value: %x"),event.pSender->GetName().GetData(),event.pSender);
 				event.pSender->Event(event);
 			}
 		};
@@ -736,19 +736,34 @@ namespace DirectUI {
 		}
 		else if(pIn->dwFlags & TOUCHEVENTF_MOVE)
 		{
-			::OutputDebugStringA("UIEVENT_TAP_MOVE\n");
+			//::OutputDebugStringA("UIEVENT_TAP_MOVE\n");
 			FireEvent(UIEVENT_TAP_MOVE,0,0);
 		}
 
 		if(pIn->dwFlags & TOUCHEVENTF_PALM)//触控事件来自用户的手掌
 		{
+			::OutputDebugStringA("TOUCHEVENTF_PALM\n");
+
 		}
 
 		if (pIn->dwFlags & TOUCHEVENTF_PEN)
 		{
+			::OutputDebugStringA("TOUCHEVENTF_PEN\n");
 
 		}
 
+		//下面参数需要设置获取信息
+		if (pIn->dwMask & TOUCHINPUTMASKF_TIMEFROMSYSTEM)
+		{
+			pIn->dwTime; //结构中设置系统时间
+		}
+		if (pIn->dwMask & TOUCHINPUTMASKF_CONTACTAREA)
+		{
+			//触控区域的宽度
+		}
+		if (pIn->dwMask & TOUCHINPUTMASKF_EXTRAINFO)
+		{
+		}
 		return true;
 	}
 
