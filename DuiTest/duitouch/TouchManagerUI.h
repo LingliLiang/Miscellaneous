@@ -125,7 +125,7 @@ namespace DirectUI {
 		bool MessageHandler(UINT uMsg, WPARAM wParam, LPARAM lParam, LRESULT& lRes);
 	public:
 		virtual bool HandleTouchInput(__in POINT ptScreen, PTOUCHINPUT pIn);
-		virtual bool HandleGestureInput(__in POINT ptScreen, PTOUCHINPUT pIn);
+		virtual bool HandleGestureInput(PGESTUREINFO pIn);
 		std::unique_ptr<TouchUtils> m_uniTouchUtils;
 	protected:
 		struct TouchInfo

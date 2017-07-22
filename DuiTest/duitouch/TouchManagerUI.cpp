@@ -47,7 +47,6 @@ namespace DirectUI {
 	{
 	}
 
-
 	CTouchManagerUI::~CTouchManagerUI(void)
 	{
 	}
@@ -64,11 +63,12 @@ namespace DirectUI {
 		if(m_bMultiTouch)
 		{
 			m_uniTouchUtils->SetupTouchHandle(this);
-			m_uniTouchUtils->SetupTouchControl(m_hWndPaint);
+			//m_uniTouchUtils->SetupTouchControl(m_hWndPaint);
+			m_uniTouchUtils->SetupGestureControl(m_hWndPaint);
 		}else
 		{
 			m_uniTouchUtils->SetupTouchHandle(NULL);
-			m_uniTouchUtils->DestoryTouchControl(m_hWndPaint);
+			//m_uniTouchUtils->DestoryTouchControl(m_hWndPaint);
 			m_mapTouchFocus.clear();
 		}
 	}
@@ -106,12 +106,14 @@ namespace DirectUI {
 				return true;
 			}
 		}
+
 		BOOL bTouchHandle = 0;
 		lRes = m_uniTouchUtils->TouchWndProc(m_hWndPaint,uMsg,wParam,lParam,bTouchHandle);
 		if(bTouchHandle)
 		{
 			return true;
 		}
+
 		// Custom handling of events
 		switch(uMsg) 
 		{
@@ -767,8 +769,43 @@ namespace DirectUI {
 		return true;
 	}
 
-	bool CTouchManagerUI::HandleGestureInput(__in POINT ptScreen, PTOUCHINPUT pIn)
+	bool CTouchManagerUI::HandleGestureInput(PGESTUREINFO pIn)
 	{
+			switch (pIn->dwID)  
+			{  
+			case GID_BEGIN: //指示泛型笔势已开始
+				::OutputDebugStringA("GID_BEGIN\n");
+				break;
+			case GID_END: //指示泛型笔势已结束
+				::OutputDebugStringA("GID_END\n");
+				break;
+			case GID_ZOOM: //指示缩放开始、缩放移动或缩放停止。第一条 GID_ZOOM 命令消息开始缩放但不会导致任何缩放。第二条 GID_ZOOM 命令触发与第一条 GID_ZOOM 中包含的状态相关的缩放
+				::OutputDebugStringA("GID_ZOOM\n");
+				pIn->ullArguments;//两点距离
+				pIn->ptsLocation; //缩放中心
+				break;  
+			case GID_PAN: //指示平移移动或平移开始。第一条 GID_PAN 命令指示平移开始但不会执行任何平移。在出现第二条 GID_PAN 命令消息时，应用程序将开始平移。
+				::OutputDebugStringA("GID_PAN\n");
+				pIn->ullArguments;//两点距离
+				pIn->ptsLocation; //当前位置
+				break;  
+			case GID_ROTATE: //指示旋转移动或旋转开始。第一条 GID_ROTATE 命令消息指示旋转移动或旋转开始但不会进行旋转。第二条 GID_ROTATE 命令消息将触发与第一条 GID_ROTATE 中包含的状态相关的旋转操作。
+				::OutputDebugStringA("GID_ROTATE\n");
+				pIn->ullArguments;//旋转角度
+				pIn->ptsLocation; //旋转中心
+				break;  
+			case GID_TWOFINGERTAP: // 指示双指点击笔势
+				::OutputDebugStringA("GID_TWOFINGERTAP\n");
+				pIn->ullArguments;//两点距离
+				pIn->ptsLocation; //缩放中心
+				break;  
+			case GID_PRESSANDTAP: //指示按住并点击笔势
+				::OutputDebugStringA("GID_PRESSANDTAP\n");
+				break;  
+			default:  
+				break;  
+			}  
+
 		return true;
 	}
 

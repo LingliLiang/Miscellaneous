@@ -6,7 +6,7 @@ class IHandleTouchInput
 {
 public:
 	virtual bool HandleTouchInput(__in POINT ptScreen, PTOUCHINPUT pIn) = 0;
-	virtual bool HandleGestureInput(__in POINT ptScreen, PTOUCHINPUT pIn) = 0;
+	virtual bool HandleGestureInput(PGESTUREINFO pIn) = 0;
 };
 
 class TouchUtils
@@ -70,34 +70,7 @@ public:
 		gi.cbSize = sizeof(gi);  
 		if(GetGestureInfo(hgi,&gi))
 		{
-			switch (gi.dwID)  
-			{  
-			case GID_BEGIN: //指示泛型笔势已开始
-				break;
-			case GID_END: //指示泛型笔势已结束
-				break;
-			case GID_ZOOM: //指示缩放开始、缩放移动或缩放停止。第一条 GID_ZOOM 命令消息开始缩放但不会导致任何缩放。第二条 GID_ZOOM 命令触发与第一条 GID_ZOOM 中包含的状态相关的缩放
-				gi.ullArguments;//两点距离
-				gi.ptsLocation; //缩放中心
-				break;  
-			case GID_PAN: //指示平移移动或平移开始。第一条 GID_PAN 命令指示平移开始但不会执行任何平移。在出现第二条 GID_PAN 命令消息时，应用程序将开始平移。
-				gi.ullArguments;//两点距离
-				gi.ptsLocation; //当前位置
-				break;  
-			case GID_ROTATE: //指示旋转移动或旋转开始。第一条 GID_ROTATE 命令消息指示旋转移动或旋转开始但不会进行旋转。第二条 GID_ROTATE 命令消息将触发与第一条 GID_ROTATE 中包含的状态相关的旋转操作。
-				gi.ullArguments;//旋转角度
-				gi.ptsLocation; //旋转中心
-				break;  
-			case GID_TWOFINGERTAP: // 指示双指点击笔势
-				gi.ullArguments;//两点距离
-				gi.ptsLocation; //缩放中心
-				break;  
-			case GID_PRESSANDTAP: //指示按住并点击笔势
-				break;  
-			default:  
-				handled = false;
-				break;  
-			}  
+			if(m_pHandleInput) /*handled = */m_pHandleInput->HandleGestureInput(&gi);
 		}
 		else{
 			handled = false;
@@ -164,7 +137,7 @@ public:
 			{
 				TOUCHINPUT& tin = tins[index];
 				POINT ptScreen = {TOUCH_COORD_TO_PIXEL(tin.x),TOUCH_COORD_TO_PIXEL(tin.y)};
-				if(m_pHandleInput) m_pHandleInput->HandleTouchInput(ptScreen,&tin);
+				if(m_pHandleInput) handled = m_pHandleInput->HandleTouchInput(ptScreen,&tin);
 			}
 		}
 		else  
@@ -186,6 +159,7 @@ public:
 		switch(uMsg)
 		{
 		case WM_GESTURENOTIFY:
+			//SetupGestureControl(hWnd);
 			//SetGestureConfig
 			break;
 		///http://msdn.microsoft.com/en-us/library/bb969148.aspx
