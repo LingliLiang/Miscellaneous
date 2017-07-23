@@ -65,12 +65,12 @@ public:
 	bool DecodeGesture(WPARAM wParam, LPARAM lParam)
 	{
 		HGESTUREINFO hgi = (HGESTUREINFO)lParam;
-		bool handled = true;  
+		bool handled = false;  
 		GESTUREINFO gi = {0};  
 		gi.cbSize = sizeof(gi);  
 		if(GetGestureInfo(hgi,&gi))
 		{
-			if(m_pHandleInput) /*handled = */m_pHandleInput->HandleGestureInput(&gi);
+			if(m_pHandleInput) handled = m_pHandleInput->HandleGestureInput(&gi);
 		}
 		else{
 			handled = false;
@@ -159,8 +159,7 @@ public:
 		switch(uMsg)
 		{
 		case WM_GESTURENOTIFY:
-			//SetupGestureControl(hWnd);
-			//SetGestureConfig
+			SetupGestureControl(hWnd);
 			break;
 		///http://msdn.microsoft.com/en-us/library/bb969148.aspx
 		case WM_TABLET_QUERYSYSTEMGESTURESTATUS:

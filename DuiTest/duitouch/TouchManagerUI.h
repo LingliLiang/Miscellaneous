@@ -99,7 +99,6 @@ namespace DirectUI {
 		//在主触控点的UIEVENT_TAP_DOWN消息
 		//总是比UIEVENT_BUTTONDOWN快一步出现
 		UIEVENT_TAP_DOWN,
-		UIEVENT_TAP_MOVE,
 		UIEVENT_TAP_UP,
 		UIEVENT_TAP,
 		UIEVENT_DBTAP,
@@ -128,6 +127,8 @@ namespace DirectUI {
 		virtual bool HandleGestureInput(PGESTUREINFO pIn);
 		std::unique_ptr<TouchUtils> m_uniTouchUtils;
 	protected:
+		bool TouchMessageHandler(UINT uMsg, WPARAM wParam, LPARAM lParam, LRESULT& lRes);
+
 		struct TouchInfo
 		{
 			CControlUI* pControl;
