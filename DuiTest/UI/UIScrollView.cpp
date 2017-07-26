@@ -1,10 +1,14 @@
 #include "StdAfx.h"
 #include "UIScrollView.h"
+
+const TCHAR* DUI_CTR_SCROLLVIEW = _T("ScrollView");
 namespace DirectUI {
 
-CScrollViewUI::CScrollViewUI() : , m_iCurSel(-1), m_uButtonState(0)
+CScrollViewUI::CScrollViewUI() : m_iCurSel(-1), m_uButtonState(0)
 {
-    m_szDropBox = CSize(0, 150);
+	m_bMouseWheeling = FALSE;
+	m_bMouseWheelSelect = true;
+    
     ::ZeroMemory(&m_rcTextPadding, sizeof(m_rcTextPadding));
 
     m_ListInfo.nColumns = 0;
@@ -24,10 +28,10 @@ CScrollViewUI::CScrollViewUI() : , m_iCurSel(-1), m_uButtonState(0)
     m_ListInfo.bMultiExpandable = false;
     ::ZeroMemory(&m_ListInfo.rcTextPadding, sizeof(m_ListInfo.rcTextPadding));
     ::ZeroMemory(&m_ListInfo.rcColumn, sizeof(m_ListInfo.rcColumn));
-
-	m_bMouseWheeling=FALSE;
-	m_bMouseWheelSelect = true;
+	memset(&m_oldPoint, 0, sizeof(POINT));
+	m_moveOffset = 0;
 }
+
 
 LPCTSTR CScrollViewUI::GetClass() const
 {
@@ -36,14 +40,14 @@ LPCTSTR CScrollViewUI::GetClass() const
 
 LPVOID CScrollViewUI::GetInterface(LPCTSTR pstrName)
 {
-	if( _tcscmp(pstrName, DUI_CTR_COMBO) == 0 ) return static_cast<CScrollViewUI*>(this);
+	if( _tcscmp(pstrName, DUI_CTR_SCROLLVIEW) == 0 ) return static_cast<CScrollViewUI*>(this);
     if( _tcscmp(pstrName, _T("IListOwner")) == 0 ) return static_cast<IListOwnerUI*>(this);
     return CContainerUI::GetInterface(pstrName);
 }
 
 UINT CScrollViewUI::GetControlFlags() const
 {
-    return UIFLAG_TABSTOP;
+    return 0;
 }
 
 void CScrollViewUI::DoInit()
@@ -57,7 +61,6 @@ int CScrollViewUI::GetCurSel() const
 
 bool CScrollViewUI::SelectItem(int nIndex, bool bTakeFocus)
 {
-    if (!IsMouseWheeling()) ;
     if (nIndex == m_iCurSel) return true;
     int iOldSel = m_iCurSel;
     if (m_iCurSel >= 0) 
@@ -85,11 +88,6 @@ bool CScrollViewUI::SelectItem(int nIndex, bool bTakeFocus)
     Invalidate();
 
     return true;
-}
-
-bool CScrollViewUI::SelectRange(int nIndex, bool bTakeFocus /* = false */)
-{
-	return true;
 }
 
 bool CScrollViewUI::SetItemIndex(CControlUI* pControl, int nIndex)
@@ -205,133 +203,14 @@ void CScrollViewUI::RemoveAll()
     CContainerUI::RemoveAll();
 }
 
-void CScrollViewUI::MoveSelectedItemToHotItem()
-{
-	return;
-}
-
-void CScrollViewUI::SetHotItemIndex(int nIndex)
-{
-	return;
-}
-
-void CScrollViewUI::SetMouseState(bool bDown)
-{
-	return;
-}
-
-void CScrollViewUI::DoEvent(TEventUI& event)
-{
-    if( !IsMouseEnabled() && event.Type > UIEVENT__MOUSEBEGIN && event.Type < UIEVENT__MOUSEEND ) {
-        if( m_pParent != NULL ) m_pParent->DoEvent(event);
-        else CContainerUI::DoEvent(event);
-        return;
-    }
-
-    if( event.Type == UIEVENT_SETFOCUS ) 
-    {
-        Invalidate();
-    }
-    if( event.Type == UIEVENT_KILLFOCUS ) 
-    {
-        Invalidate();
-    }
-    if( event.Type == UIEVENT_BUTTONDOWN )
-    {
-        if( IsEnabled() ) 
-		{
-            Activate();
-            m_uButtonState |= UISTATE_PUSHED | UISTATE_CAPTURED;
-        }
-        return;
-    }
-    if( event.Type == UIEVENT_BUTTONUP )
-    {
-        if( (m_uButtonState & UISTATE_CAPTURED) != 0 ) 
-		{
-            m_uButtonState &= ~ UISTATE_CAPTURED;
-            Invalidate();
-        }
-        return;
-    }
-    if( event.Type == UIEVENT_MOUSEMOVE )
-    {
-        return;
-    }
-    if( event.Type == UIEVENT_KEYDOWN )
-    {
-        switch( event.chKey ) {
-        case VK_F4:
-            Activate();
-            return;
-        case VK_UP:
-            SelectItem(FindSelectable(m_iCurSel - 1, false));
-            return;
-        case VK_DOWN:
-            SelectItem(FindSelectable(m_iCurSel + 1, true));
-            return;
-        case VK_PRIOR:
-            SelectItem(FindSelectable(m_iCurSel - 1, false));
-            return;
-        case VK_NEXT:
-            SelectItem(FindSelectable(m_iCurSel + 1, true));
-            return;
-        case VK_HOME:
-            SelectItem(FindSelectable(0, false));
-            return;
-        case VK_END:
-            SelectItem(FindSelectable(GetCount() - 1, true));
-            return;
-        }
-    }
-    if( event.Type == UIEVENT_SCROLLWHEEL )
-    {
-		if (!IsEnabled())
-			return;
-		if (!m_bMouseWheelSelect)
-			return;
-        bool bDownward = LOWORD(event.wParam) == SB_LINEDOWN;
-		SetMouseWheeling(TRUE);
-        SelectItem(FindSelectable(m_iCurSel + (bDownward ? 1 : -1), bDownward));
-		SetMouseWheeling(FALSE);
-        return;
-    }
-    if( event.Type == UIEVENT_CONTEXTMENU )
-    {
-        return;
-    }
-    if( event.Type == UIEVENT_MOUSEENTER )
-    {
-        if (::PtInRect(&m_rcItem, event.ptMouse ))
-		{
-            if( (m_uButtonState & UISTATE_HOT) == 0  )
-                m_uButtonState |= UISTATE_HOT;
-            Invalidate();
-        }
-        return;
-    }
-    if( event.Type == UIEVENT_MOUSELEAVE )
-    {
-        if( (m_uButtonState & UISTATE_HOT) != 0 ) {
-            m_uButtonState &= ~UISTATE_HOT;
-            Invalidate();
-        }
-        return;
-    }
-
-    CControlUI::DoEvent(event);
-}
-
 SIZE CScrollViewUI::EstimateSize(SIZE szAvailable)
 {
-    if( m_cxyFixed.cy == 0 ) return CSize(m_cxyFixed.cx, m_pManager->GetDefaultFontInfo()->tm.tmHeight + 12);
     return CControlUI::EstimateSize(szAvailable);
 }
 
 bool CScrollViewUI::Activate()
 {
     if( !CControlUI::Activate() ) return false;
-    if( m_pManager != NULL ) m_pManager->SendNotify(this, DUI_MSGTYPE_DROPDOWN);
     Invalidate();
     return true;
 }
@@ -347,26 +226,6 @@ void CScrollViewUI::SetEnabled(bool bEnable)
 {
     CContainerUI::SetEnabled(bEnable);
     if( !IsEnabled() ) m_uButtonState = 0;
-}
-
-CUIString CScrollViewUI::GetDropBoxAttributeList()
-{
-    return m_sDropBoxAttributes;
-}
-
-void CScrollViewUI::SetDropBoxAttributeList(LPCTSTR pstrList)
-{
-    m_sDropBoxAttributes = pstrList;
-}
-
-SIZE CScrollViewUI::GetDropBoxSize() const
-{
-    return m_szDropBox;
-}
-
-void CScrollViewUI::SetDropBoxSize(SIZE szDropBox)
-{
-    m_szDropBox = szDropBox;
 }
 
 RECT CScrollViewUI::GetTextPadding() const
@@ -553,6 +412,7 @@ DWORD CScrollViewUI::GetHotItemTextColor() const
 {
 	return m_ListInfo.dwHotTextColor;
 }
+
 DWORD CScrollViewUI::GetHotItemBkColor() const
 {
 	return m_ListInfo.dwHotBkColor;
@@ -642,15 +502,6 @@ void CScrollViewUI::SetAttribute(LPCTSTR pstrName, LPCTSTR pstrValue)
     else if (_tcscmp(pstrName, _T("pushedimage")) == 0) SetPushedImage(pstrValue);
     else if (_tcscmp(pstrName, _T("focusedimage")) == 0) SetFocusedImage(pstrValue);
     else if (_tcscmp(pstrName, _T("disabledimage")) == 0) SetDisabledImage(pstrValue);
-    else if (_tcscmp(pstrName, _T("dropbox")) == 0) SetDropBoxAttributeList(pstrValue);
-	else if (_tcscmp(pstrName, _T("dropboxsize")) == 0)
-	{
-		SIZE szDropBoxSize = { 0 };
-		LPTSTR pstr = NULL;
-		szDropBoxSize.cx = _tcstol(pstrValue, &pstr, 10);  ASSERT(pstr);    
-		szDropBoxSize.cy = _tcstol(pstr + 1, &pstr, 10);   ASSERT(pstr);    
-		SetDropBoxSize(szDropBoxSize);
-	}
     else if (_tcscmp(pstrName, _T("itemfont")) == 0) m_ListInfo.nFont = _ttoi(pstrValue);
     else if (_tcscmp(pstrName, _T("itemalign")) == 0)
 	{
@@ -670,7 +521,7 @@ void CScrollViewUI::SetAttribute(LPCTSTR pstrName, LPCTSTR pstrValue)
             m_ListInfo.uTextStyle |= DT_RIGHT;
         }
     }
-    if (_tcscmp(pstrName, _T("itemtextpadding")) == 0)
+    else if (_tcscmp(pstrName, _T("itemtextpadding")) == 0)
 	{
         RECT rcTextPadding = { 0 };
         LPTSTR pstr = NULL;
@@ -759,7 +610,49 @@ void CScrollViewUI::SetAttribute(LPCTSTR pstrName, LPCTSTR pstrValue)
 
 void CScrollViewUI::DoPaint(HDC hDC, const RECT& rcPaint)
 {
-    CControlUI::DoPaint(hDC, rcPaint);
+	if (!::IntersectRect(&m_rcPaint, &rcPaint, &m_rcItem)) return;
+
+	// »æÖÆÑ­Ðò£º±³¾°ÑÕÉ«->±³¾°Í¼->×´Ì¬Í¼->ÎÄ±¾->±ß¿ò
+	if (m_cxyBorderRound.cx > 0 || m_cxyBorderRound.cy > 0)
+	{
+		CRenderClip roundClip;
+		CRenderClip::GenerateRoundClip(hDC, m_rcPaint, m_rcItem, m_cxyBorderRound.cx, m_cxyBorderRound.cy, roundClip);
+		PaintBkColor(hDC);
+		PaintBkImage(hDC);
+		PaintStatusImage(hDC);
+		PaintText(hDC);
+		PaintBorder(hDC);
+	}
+	else
+	{
+		CRenderClip Clip;
+		CRenderClip::GenerateClip(hDC, m_rcItem, Clip);
+		PaintBkColor(hDC);
+		PaintBkImage(hDC);
+		PaintStatusImage(hDC);
+		PaintText(hDC);
+		PaintBorder(hDC);
+	}
+}
+
+void CScrollViewUI::SetMouseWheeling(BOOL b)
+{
+	m_bMouseWheeling = b;
+}
+
+BOOL CScrollViewUI::IsMouseWheeling()
+{
+	return m_bMouseWheeling;
+}
+
+void CScrollViewUI::SetMouseWheelSelect(bool isMouseWheelSelect)
+{
+	m_bMouseWheelSelect = isMouseWheelSelect;
+}
+
+bool CScrollViewUI::GetMouseWheelSelect()
+{
+	return m_bMouseWheelSelect;
 }
 
 void CScrollViewUI::PaintStatusImage(HDC hDC)
@@ -811,48 +704,244 @@ void CScrollViewUI::PaintStatusImage(HDC hDC)
 
 void CScrollViewUI::PaintText(HDC hDC)
 {
-    RECT rcText = m_rcItem;
-    rcText.left += m_rcTextPadding.left;
-    rcText.right -= m_rcTextPadding.right;
-    rcText.top += m_rcTextPadding.top;
-    rcText.bottom -= m_rcTextPadding.bottom;
-	
-    if (m_iCurSel >= 0) 
+	RECT rcText;
+
+	if (m_iCurSel >= 0)
 	{
-        CControlUI* pControl = static_cast<CControlUI*>(m_items[m_iCurSel]);
-        IListItemUI* pElement = static_cast<IListItemUI*>(pControl->GetInterface(_T("ListItem")));
-        if (pElement != NULL) 
+		auto Item = [&](int index)->CControlUI*
 		{
-            pElement->DrawItemText(hDC, rcText);
-        }
-        else 
+			return static_cast<CControlUI*>(m_items[index]);
+		};
+		auto PaintCtl = [&](CControlUI* pControl,int line)->void
 		{
-            RECT rcOldPos = pControl->GetPos();
-            pControl->SetPos(rcText);
-            pControl->DoPaint(hDC, rcText);
-            pControl->SetPos(rcOldPos);
-        }
-    }
+			RECT rcOldPos = pControl->GetPos();
+			CRect rcPos(m_rcItem);
+			rcPos.top = line;
+			rcPos.bottom = rcPos.top + pControl->GetFixedHeight();
+			pControl->SetPos(rcPos);
+			pControl->DoPaint(hDC, rcPos);
+			pControl->SetPos(rcOldPos);
+		};
+		//paint select above
+		int lineY = GetMoveLineY();
+		int indexOther = 0;
+		int lineOther = 0;
+		indexOther = GetPreIndex(m_iCurSel);
+		lineOther = lineY;
+		while (true)
+		{
+			CControlUI* pControl = Item(indexOther);
+			if (lineOther <= m_rcItem.top)
+			{
+				break;
+			}
+			lineOther -= pControl->GetFixedHeight();
+			PaintCtl(pControl, lineOther);
+			indexOther = GetPreIndex(indexOther);
+
+		}
+		//paint select item
+		{
+			CControlUI* pControl = Item(m_iCurSel);
+			PaintCtl(pControl, lineY);
+			lineY += pControl->GetFixedHeight();
+		}
+		//paint select above
+		indexOther = GetNextIndex(m_iCurSel);
+		lineOther = lineY;
+		while (true)
+		{
+			CControlUI* pControl = Item(indexOther);
+			if (lineOther >= m_rcItem.bottom)
+			{
+				break;
+			}
+			PaintCtl(pControl, lineOther);
+			lineOther += pControl->GetFixedHeight();
+			indexOther = GetNextIndex(indexOther);
+		}
+	}
 }
 
-void CScrollViewUI::SetMouseWheeling(BOOL b)
+void CScrollViewUI::DoEvent(TEventUI& event)
 {
-	m_bMouseWheeling=b;
+	if (!IsMouseEnabled() && event.Type > UIEVENT__MOUSEBEGIN && event.Type < UIEVENT__MOUSEEND) {
+		if (m_pParent != NULL) m_pParent->DoEvent(event);
+		else CContainerUI::DoEvent(event);
+		return;
+	}
+
+	if (event.Type == UIEVENT_SETFOCUS)
+	{
+		Invalidate();
+	}
+	if (event.Type == UIEVENT_KILLFOCUS)
+	{
+		Invalidate();
+	}
+	if (event.Type == UIEVENT_BUTTONDOWN)
+	{
+		if (IsEnabled())
+		{
+			Activate();
+			m_uButtonState |= UISTATE_PUSHED | UISTATE_CAPTURED;
+			m_oldPoint = event.ptMouse;
+			m_moveOffset = 0;
+		}
+		return;
+	}
+	if (event.Type == UIEVENT_BUTTONUP)
+	{
+		if ((m_uButtonState & UISTATE_CAPTURED) != 0)
+		{
+			m_moveOffset = 0;
+			memset(&m_oldPoint, 0, sizeof(POINT));
+			m_uButtonState &= ~UISTATE_CAPTURED;
+			Invalidate();
+		}
+		return;
+	}
+	if (event.Type == UIEVENT_MOUSEMOVE)
+	{
+		if (m_oldPoint.x != 0 && 0 != m_oldPoint.y)
+		{
+			int offsety = event.ptMouse.y - m_oldPoint.y; //ÕýÎªÉÏÒÆ,¸ºÎªÏÂÒÆ
+			if (offsety > 0)
+			{
+				m_moveOffset = offsety;
+			}
+			else
+			{
+				m_moveOffset = offsety;
+			}
+			Invalidate();
+		}
+		return;
+	}
+	if (event.Type == UIEVENT_KEYDOWN)
+	{
+		switch (event.chKey) {
+		case VK_F4:
+			Activate();
+			return;
+		case VK_UP:
+			SelectItem(FindSelectable(m_iCurSel - 1, false));
+			return;
+		case VK_DOWN:
+			SelectItem(FindSelectable(m_iCurSel + 1, true));
+			return;
+		case VK_PRIOR:
+			SelectItem(FindSelectable(m_iCurSel - 1, false));
+			return;
+		case VK_NEXT:
+			SelectItem(FindSelectable(m_iCurSel + 1, true));
+			return;
+		case VK_HOME:
+			SelectItem(FindSelectable(0, false));
+			return;
+		case VK_END:
+			SelectItem(FindSelectable(GetCount() - 1, true));
+			return;
+		}
+	}
+	if (event.Type == UIEVENT_SCROLLWHEEL)
+	{
+		if (!IsEnabled())
+			return;
+		if (!m_bMouseWheelSelect)
+			return;
+		bool bDownward = LOWORD(event.wParam) == SB_LINEDOWN;
+		SetMouseWheeling(TRUE);
+		SelectItem(FindSelectable(m_iCurSel + (bDownward ? 1 : -1), bDownward));
+		SetMouseWheeling(FALSE);
+		return;
+	}
+	if (event.Type == UIEVENT_CONTEXTMENU)
+	{
+		return;
+	}
+	if (event.Type == UIEVENT_MOUSEENTER)
+	{
+		if (::PtInRect(&m_rcItem, event.ptMouse))
+		{
+			if ((m_uButtonState & UISTATE_HOT) == 0)
+				m_uButtonState |= UISTATE_HOT;
+			Invalidate();
+		}
+		return;
+	}
+	if (event.Type == UIEVENT_MOUSELEAVE)
+	{
+		if ((m_uButtonState & UISTATE_HOT) != 0) {
+			m_uButtonState &= ~UISTATE_HOT;
+			Invalidate();
+		}
+		return;
+	}
+
+	CControlUI::DoEvent(event);
 }
 
-BOOL CScrollViewUI::IsMouseWheeling()
+RECT CScrollViewUI::GetCurPaintRc()
 {
-	return m_bMouseWheeling;
+	RECT rcText = m_rcItem;
+	rcText.left += m_rcTextPadding.left;
+	rcText.right -= m_rcTextPadding.right;
+	rcText.top += m_rcTextPadding.top;
+	rcText.bottom -= m_rcTextPadding.bottom;
+	return CRect();
 }
 
-void CScrollViewUI::SetMouseWheelSelect(bool isMouseWheelSelect)
+long CScrollViewUI::GetSelectLineY(int index)
 {
-	m_bMouseWheelSelect = isMouseWheelSelect;
+	CControlUI* p = GetItemAt(index);
+	if (p)
+	{
+		long y = m_rcItem.bottom - m_rcItem.top;
+		long height = p->GetFixedHeight();
+		if (y > 0)
+		{
+			if (y > height)
+			{
+				return m_rcItem.top + ((y - height) >> 1);
+			}
+			else
+			{
+				return m_rcItem.top - ((height - y) >> 1);
+			}
+		}
+		
+	}
+	return -1;
 }
 
-bool CScrollViewUI::GetMouseWheelSelect()
+long CScrollViewUI::GetMoveLineY()
 {
-	return m_bMouseWheelSelect;
+	if (m_moveOffset != 0)
+	{
+		return GetSelectLineY(m_iCurSel) + m_moveOffset;
+	}
+	return GetSelectLineY(m_iCurSel);
 }
+
+int CScrollViewUI::GetPreIndex(int index)
+{
+	if (index < 0) return -1;
+	int size = m_items.GetSize();
+	if (size == 0) return -1;
+	if (index == 0) return size - 1;
+	return index - 1;
+}
+
+int CScrollViewUI::GetNextIndex(int index)
+{
+	if (index < 0) return -1;
+	int size = m_items.GetSize();
+	if (size == 0) return -1;
+	if (index == size - 1) return 0;
+	return index + 1;
+}
+
+
 
 } // namespace DirectUI

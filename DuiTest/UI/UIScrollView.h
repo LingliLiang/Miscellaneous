@@ -2,6 +2,7 @@
 #define __UISCROLLVIEW_H__
 
 #pragma once
+extern const TCHAR* DUI_CTR_SCROLLVIEW;
 
 namespace DirectUI {
 /////////////////////////////////////////////////////////////////////////////////////
@@ -21,23 +22,23 @@ public:
     CUIString GetText() const;
     void SetEnabled(bool bEnable = true);
 
-    CUIString GetDropBoxAttributeList();
-    void SetDropBoxAttributeList(LPCTSTR pstrList);
-    SIZE GetDropBoxSize() const;
-    void SetDropBoxSize(SIZE szDropBox);
+	virtual TListInfoUI* GetListInfo();
+	virtual int GetCurSel() const;
+	virtual bool SelectItem(int nIndex, bool bTakeFocus = false);
+	virtual bool SelectRange(int nIndex, bool bTakeFocus = false) { return false; }
+	virtual void MoveSelectedItemToHotItem() {}//ÒÆ¶¯Ïî
+	virtual void SetHotItemIndex(int nIndex){}
+	virtual void SetMouseState(bool bDown){}
+	virtual bool NeedCurSelectNotify() { return true; };
 
-    int GetCurSel() const;  
-    bool SelectItem(int nIndex, bool bTakeFocus = false);
-	bool SelectRange(int nIndex, bool bTakeFocus = false);
     bool SetItemIndex(CControlUI* pControl, int nIndex);
+
     bool Add(CControlUI* pControl);
     bool AddAt(CControlUI* pControl, int nIndex);
     bool Remove(CControlUI* pControl);
     bool RemoveAt(int nIndex);
     void RemoveAll();
-	void MoveSelectedItemToHotItem();
-	void SetHotItemIndex(int nIndex);
-	void SetMouseState(bool bDown);
+
 
     bool Activate();
 
@@ -54,7 +55,6 @@ public:
     LPCTSTR GetDisabledImage() const;
     void SetDisabledImage(LPCTSTR pStrImage);
 
-    TListInfoUI* GetListInfo();
     void SetItemFont(int index);
     void SetItemTextStyle(UINT uStyle);
 	RECT GetItemTextPadding() const;
@@ -99,14 +99,18 @@ public:
     void PaintText(HDC hDC);
     void PaintStatusImage(HDC hDC);
 
-	virtual bool NeedCurSelectNotify() {return true;}
-
 	void SetMouseWheelSelect(bool isMouseWheelSelect);
 	bool GetMouseWheelSelect();
 
 protected:
 	void SetMouseWheeling(BOOL b);
 	BOOL IsMouseWheeling();
+	RECT GetCurPaintRc();
+	long GetSelectLineY(int index);
+	long GetMoveLineY(); //make sure m_iCurSel invalid before call
+
+	int GetPreIndex(int index);
+	int GetNextIndex(int index);
 protected:
 
     int m_iCurSel;
@@ -124,6 +128,8 @@ protected:
     TListInfoUI m_ListInfo;
 	BOOL m_bMouseWheeling;
 	bool m_bMouseWheelSelect;
+	POINT m_oldPoint;
+	int m_moveOffset;
 };
 
 } // namespace DirectUI

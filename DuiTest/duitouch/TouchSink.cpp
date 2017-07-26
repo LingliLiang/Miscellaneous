@@ -193,7 +193,7 @@ void init() {
 }
 
 // Set up a variable to point to the manipulation event sink implementation class    
-CComPtr<CManipulationEventSink> g_pManipulationEventSink(new CManipulationEventSink(g_pIManipProc, 0));
+//CComPtr<CManipulationEventSink> g_pManipulationEventSink(new CManipulationEventSink(g_pIManipProc, 0));
 
 //if (pInputs[i].dwFlags & TOUCHEVENTF_DOWN) {
 //	g_pIManipProc->ProcessDown(pInputs[i].dwID, static_cast<FLOAT>(pInputs[i].x), static_cast<FLOAT>(pInputs[i].y));
