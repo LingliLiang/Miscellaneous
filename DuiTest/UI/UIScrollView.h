@@ -54,6 +54,8 @@ public:
     void SetFocusedImage(LPCTSTR pStrImage);
     LPCTSTR GetDisabledImage() const;
     void SetDisabledImage(LPCTSTR pStrImage);
+	LPCTSTR GetForeImage() const;
+    void SetForeImage(LPCTSTR pStrImage);
 
     void SetItemFont(int index);
     void SetItemTextStyle(UINT uStyle);
@@ -89,6 +91,9 @@ public:
     void SetItemLineColor(DWORD dwLineColor);
     bool IsItemShowHtml();
     void SetItemShowHtml(bool bShowHtml = true);
+	//ItemSize 该属性只存储信息,不能改变控件实际大小
+	SIZE GetItemSize();
+	void SetItemSize(SIZE size);
 
     SIZE EstimateSize(SIZE szAvailable);
     void SetPos(RECT rc);
@@ -105,31 +110,30 @@ public:
 protected:
 	void SetMouseWheeling(BOOL b);
 	BOOL IsMouseWheeling();
-	RECT GetCurPaintRc();
+	RECT CScrollViewUI::GetClipPaintRc();
 	long GetSelectLineY(int index);
 	long GetMoveLineY(); //make sure m_iCurSel invalid before call
-
 	int GetPreIndex(int index);
 	int GetNextIndex(int index);
 protected:
 
     int m_iCurSel;
     UINT m_uButtonState;
-    SIZE m_szDropBox;
+    SIZE m_szItem; //该属性只存储信息,不能改变控件实际大小
     RECT m_rcTextPadding;
-    CUIString m_sDropBoxAttributes;
-
     CUIString m_sNormalImage;
     CUIString m_sHotImage;
     CUIString m_sPushedImage;
     CUIString m_sFocusedImage;
     CUIString m_sDisabledImage;
+    CUIString m_sForeImage;
 
     TListInfoUI m_ListInfo;
 	BOOL m_bMouseWheeling;
 	bool m_bMouseWheelSelect;
 	POINT m_oldPoint;
 	int m_moveOffset;
+	int m_ptYCorrect;
 };
 
 } // namespace DirectUI
