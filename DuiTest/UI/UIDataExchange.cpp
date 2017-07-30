@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "UIDataExchange.h"
-
+#include <TCHAR.H>
 
 CUIDataExchange::CUIDataExchange(CContainerUI* p)
 	:m_pRoot(p), m_pPaintManager(*(p->GetManager()))
@@ -175,6 +175,7 @@ BOOL CUIDataExchange::UpdateData(BOOL bGetFromUI)
 		while (iter != mapExData.end())
 		{
 			PassConstraint(bGetFromUI,iter);
+			iter++;
 		}
 	};
 	if (bGetFromUI)
@@ -235,8 +236,8 @@ void CUIDataExchange::PassConstraint(BOOL bGetFromUI, ExDataIter& iter)
 	if(bGetFromUI)
 	{
 		//UI to Memory
-		data = _tcstoll(iter->second.cur.GetBuffer(),0,10) ;
-		if (iter->second.opt & NON)
+		data = _tcstoi64(iter->second.cur.GetBuffer(),0,10) ;
+		if (iter->second.opt == NON)
 		{ }
 		else if(iter->second.opt & ADD){
 			data -= iter->second.value.vLong;
@@ -249,17 +250,31 @@ void CUIDataExchange::PassConstraint(BOOL bGetFromUI, ExDataIter& iter)
 		else if(iter->second.opt & MUL){
 			data = iter->second.value.vLong;
 			if(data != 0)
-				data = _tcstoll(iter->second.cur.GetBuffer(),0,10) / data;
+				data = _tcstoi64(iter->second.cur.GetBuffer(),0,10) / data;
 			else
-				data = _tcstoll(iter->second.cur.GetBuffer(),0,10);
+				data = _tcstoi64(iter->second.cur.GetBuffer(),0,10);
 			iter->second.cur.Format(_T("%I64d"),data);
 		}
 		else if(iter->second.opt & DIV){
 			data *= iter->second.value.vLong;
 			iter->second.cur.Format(_T("%I64d"),data);
 		}
-		else if(iter->second.opt & ZFIX){
+		else if(iter->second.opt & ZFIXED){
 			if(data == 0)
+			{
+				data = iter->second.value.vLong;
+				iter->second.cur.Format(_T("%I64d"),data);
+			}
+		}
+		else if(iter->second.opt & ILTFIXED){
+			if(data < iter->second.value.vLong)
+			{
+				data = iter->second.value.vLong;
+				iter->second.cur.Format(_T("%I64d"),data);
+			}
+		}
+		else if(iter->second.opt & IGTFIXED){
+			if(data >  iter->second.value.vLong)
 			{
 				data = iter->second.value.vLong;
 				iter->second.cur.Format(_T("%I64d"),data);
@@ -267,14 +282,16 @@ void CUIDataExchange::PassConstraint(BOOL bGetFromUI, ExDataIter& iter)
 		}
 		else if(iter->second.opt & FUNC || iter->second.opt & OFUNC){
 			if(iter->second.pfun)
+			{
 				iter->second.pfun(bGetFromUI,iter->second.pCtl,iter->first,iter->second.cur);
+			}
 		}
 	}
 	else
 	{
 		//Memory to UI
 		data = _tcstoul(iter->second.cur.GetBuffer(),0,10);
-		if (iter->second.opt & NON)
+		if (iter->second.opt == NON)
 		{
 			strText = iter->second.cur;
 		}
@@ -293,13 +310,29 @@ void CUIDataExchange::PassConstraint(BOOL bGetFromUI, ExDataIter& iter)
 		else if(iter->second.opt & DIV){
 			data = iter->second.value.vLong;
 			if(data != 0)
-				data = _tcstoll(iter->second.cur.GetBuffer(),0,10) / data;
+				data = _tcstoi64(iter->second.cur.GetBuffer(),0,10) / data;
 			else
-				data = _tcstoll(iter->second.cur.GetBuffer(),0,10);
+				data = _tcstoi64(iter->second.cur.GetBuffer(),0,10);
 			strText.Format(_T("%I64d"),data);
 		}
-		else if(iter->second.opt & ZFIX){
+		else if(iter->second.opt & ZFIXED){
 			if(data == 0)
+			{
+				data = iter->second.value.vLong;
+				iter->second.cur.Format(_T("%I64d"),data);
+			}
+			strText = iter->second.cur;
+		}
+		else if(iter->second.opt & ILTFIXED){
+			if(data < iter->second.value.vLong)
+			{
+				data = iter->second.value.vLong;
+				iter->second.cur.Format(_T("%I64d"),data);
+			}
+			strText = iter->second.cur;
+		}
+		else if(iter->second.opt & IGTFIXED){
+			if(data >  iter->second.value.vLong)
 			{
 				data = iter->second.value.vLong;
 				iter->second.cur.Format(_T("%I64d"),data);
@@ -308,7 +341,9 @@ void CUIDataExchange::PassConstraint(BOOL bGetFromUI, ExDataIter& iter)
 		}
 		else if(iter->second.opt & FUNC || iter->second.opt & OFUNC){
 			if (iter->second.pfun)
+			{
 				iter->second.pfun(bGetFromUI, iter->second.pCtl, iter->first, strText);
+			}
 		}
 		iter->second.cur_ = strText;
 	}

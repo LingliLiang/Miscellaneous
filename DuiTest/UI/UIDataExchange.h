@@ -27,14 +27,16 @@ public:
 		SUB = 0x02, // -
 		MUL = 0x04, //*
 		DIV = 0x08,  //  /
-		ZFIX = 0x10, // 如果数据值0,设为指定值
+		ZFIXED = 0x10, // 如果数据值0,设为指定值
+		ILTFIXED = 0x20, // is less than, 如果数据值<指定值,设为指定值
+		IGTFIXED = 0x40, // is greater  than, 如果数据值>指定值,设为指定值
 		/**
 		*下面约束键值为用户自定义操作设置
 		*根据get_form_ui判断数据走向
 		*使用UDE_Constraint_Func绑定回调函数
 		**/
-		FUNC = 0x20, // 普通函数绑定
-		OFUNC = 0x40, // 类函数绑定
+		FUNC = 0x10000000, // 普通函数绑定
+		OFUNC = 0x20000000, // 类函数绑定
 		END
 	};
 
