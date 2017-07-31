@@ -47,6 +47,16 @@ BOOL CUIDataExchange::SetData(CString strCtlName, CString strData)
 	return FALSE;
 }
 
+CControlUI*  CUIDataExchange::GetControl(CString strCtlName)
+{
+	auto value = mapExData.find(strCtlName);
+	if (value != mapExData.end())
+	{
+		return value->second.pCtl;
+	}
+	return nullptr;
+}
+
 void CUIDataExchange::InitControlUpdataFunc()
 {
 	mapFuncReg[CString(_T("OptionUI"))] = _tagFuncUpdate(
@@ -198,35 +208,6 @@ void CUIDataExchange::UDE_Constraint(CString strCtlName, ConstraintValue opt, LO
 	mapExData[strCtlName].value.vLong = value;
 }
 
-template <typename FnType, typename O>
-void CUIDataExchange::UDE_Constraint_Func(CString strCtlName, FnType pFunc, O* pthis/* = NULL*/)
-{
-	DataLeve::ValueByte& value = mapExData[strCtlName].value;
-	if(pthis)
-	{
-		mapExData[strCtlName].opt = OFUNC;	
-		value.pfun = std::bind(pFunc, pthis, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
-	}
-	else
-	{
-		mapExData[strCtlName].opt = FUNC;
-		value.pfun = std::bind(pFunc, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
-	}
-}
-
-template <typename FnType, typename O>
-void CUIDataExchange::UDE_Update_Func(CString strClass, FnType getFormUI, FnType setToUI, O* pthis /*= NULL*/)
-{
-	if (!strClass.IsEmpty()) {
-		if(pthis)
-			mapFuncReg[strClass] = _tagFuncUpdate(std::bind(getFormUI, pthis, std::placeholders::_1, std::placeholders::_2),
-				std::bind(setToUI, pthis, std::placeholders::_1, std::placeholders::_2));
-		else
-			mapFuncReg[strClass] = _tagFuncUpdate(std::bind(getFormUI, std::placeholders::_1, std::placeholders::_2),
-				std::bind(setToUI, std::placeholders::_1, std::placeholders::_2));
-	}
-}
-
 void CUIDataExchange::PassConstraint(BOOL bGetFromUI, ExDataIter& iter)
 {
 	//获取和设置UI数据不在这里操作,
@@ -342,6 +323,7 @@ void CUIDataExchange::PassConstraint(BOOL bGetFromUI, ExDataIter& iter)
 		else if(iter->second.opt & FUNC || iter->second.opt & OFUNC){
 			if (iter->second.pfun)
 			{
+				strText = iter->second.cur;
 				iter->second.pfun(bGetFromUI, iter->second.pCtl, iter->first, strText);
 			}
 		}

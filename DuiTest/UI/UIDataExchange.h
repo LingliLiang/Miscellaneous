@@ -66,9 +66,11 @@ public:
 	** pFunc: 函数绑定,传入符合FuncConstraint规则的类或普通函数
 	** pthis: 类函数绑定,pthis必须不为NULL
 	**/
-	template <typename FnType, typename O /*类类型,不使用类函数绑定时设置一些普通类型如void*/>
-	void UDE_Constraint_Func(CString strCtlName, FnType pFunc, O* pthis = NULL);
-	
+	template <typename FnClassType, typename O /*类类型*/>
+	void UDE_Constraint_Func(CString strCtlName, FnClassType pFunc, O* pthis);
+	template <typename FnType>
+	void UDE_Constraint_Func(CString strCtlName, FnType pFunc);
+
 	/**
 	** 描述: 对没有定义的控件数据获取设置函数,进行函数注册.具体原有支持的控件在类注释上查看
 	** strClass: 控件类的GetClass名称
@@ -76,8 +78,10 @@ public:
 	** pthis: 类函数绑定,pthis必须不为NULL
 	** note: 有覆盖作用,后设置的函数会覆盖同类型的原有函数.Update总是在Constraint之前调用.注意的处理这些关系.
 	**/
-	template <typename FnType, typename O /*类类型,不使用类函数绑定时设置一些普通类型如void*/>
-	void UDE_Update_Func(CString strClass, FnType getFormUI, FnType setToUI, O* pthis = NULL);
+	template <typename FnClassType, typename O>
+	void UDE_Update_Func(CString strClass, FnClassType getFormUI, FnClassType setToUI, O* pthis);
+	template <typename FnType>
+	void UDE_Update_Func(CString strClass, FnType getFormUI, FnType setToUI);
 
 
 	/**
@@ -117,6 +121,12 @@ public:
 	** 描述: 清空绑定控件EditUI/RichEditUI/ControlUI的text
 	**/
 	virtual void ClearText();
+
+
+	/**
+	** 描述: 获取注册的控件
+	**/
+	CControlUI* GetControl(CString strCtlName);
 
 protected:
 	CContainerUI* m_pRoot;
@@ -160,3 +170,44 @@ private:
 
 	inline void PassConstraint(BOOL bGetFromUI, ExDataIter& iter);
 };
+
+
+template <typename FnClassType, typename O>
+void CUIDataExchange::UDE_Constraint_Func(CString strCtlName, FnClassType pFunc, O* pthis)
+{
+	auto& value = mapExData[strCtlName];
+	if(pthis)
+	{
+		mapExData[strCtlName].opt = OFUNC;	
+		value.pfun = std::bind(pFunc, pthis, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+	}
+}
+
+template <typename FnType>
+void CUIDataExchange::UDE_Constraint_Func(CString strCtlName, FnType pFunc)
+{
+	auto& value = mapExData[strCtlName];
+	mapExData[strCtlName].opt = FUNC;
+	value.pfun = std::bind(pFunc, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+}
+
+template <typename FnClassType, typename O>
+void CUIDataExchange::UDE_Update_Func(CString strClass, FnClassType getFormUI, FnClassType setToUI, O* pthis)
+{
+	if (!strClass.IsEmpty()) {
+		if(pthis)
+		{
+			mapFuncReg[strClass] = _tagFuncUpdate(std::bind(getFormUI, pthis, std::placeholders::_1, std::placeholders::_2),
+				std::bind(setToUI, pthis, std::placeholders::_1, std::placeholders::_2));
+		}
+	}
+}
+
+template <typename FnType>
+void CUIDataExchange::UDE_Update_Func(CString strClass, FnType getFormUI, FnType setToUI)
+{
+	if (!strClass.IsEmpty()) {
+		mapFuncReg[strClass] = _tagFuncUpdate(std::bind(getFormUI, std::placeholders::_1, std::placeholders::_2),
+			std::bind(setToUI, std::placeholders::_1, std::placeholders::_2));
+	}
+}
