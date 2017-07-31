@@ -26,7 +26,6 @@ namespace DirectUI
 		}
 		catch (...)
 		{
-			throw "CAnalogStickUI::~CAnalogStickUI";
 		}
 	}
 
