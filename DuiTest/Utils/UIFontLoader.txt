@@ -1,0 +1,48 @@
+UILabel 378
+//TFontInfo* info = m_pManager->GetFontInfo(GetFont());
+			////Font* pFont = new Font(hDC,info->hFont);
+			//INT fs = FontStyleRegular;
+			//const PrivateFontCollection * pfc = m_pManager->GetGDIFontCollection();
+			//if(pfc && pfc->GetLastStatus() == Ok)
+			//{
+			//	if(info->bBold) {fs |= FontStyleBold;}
+			//	if(info->bItalic) {fs |= FontStyleItalic;}
+			//	if(info->bUnderline) {fs |= FontStyleUnderline;}
+			//}
+			//Font nFont(info->sFontName,(Gdiplus::REAL)info->iSize,fs,UnitPoint, pfc);
+
+
+	static void SetFontFolder(LPCTSTR pStrPath);
+	static void LoadFontsFromPath();
+	static void LoadFontsFromResource(DWORD* idr_fons/*array*/, DWORD count);
+	const Gdiplus::PrivateFontCollection *GetGDIFontCollection();
+
+CFontLoader CPaintManagerUI::m_pFontLoader;
+
+
+void CPaintManagerUI::SetFontFolder(LPCTSTR pStrPath)
+{
+	m_pFontLoader.SetFontFolder(pStrPath);
+}
+
+void CPaintManagerUI::LoadFontsFromPath()
+{
+	m_pFontLoader.LoadFontsFromPath();
+}
+
+void CPaintManagerUI::LoadFontsFromResource(DWORD* idr_fons/*array*/, DWORD count)
+{
+	m_pFontLoader.LoadFontsFromResource(idr_fons,count);
+}
+
+const Gdiplus::PrivateFontCollection *CPaintManagerUI::GetGDIFontCollection()
+{
+	return m_pFontLoader.GetFontCollection();
+}
+
+
+	//CPaintManagerUI::SetFontFolder(_T("font"));//设置字体相对路径默认为 skin\\default\\font
+	CPaintManagerUI::LoadFontsFromPath(); //从路径加载字体
+	//另一种方式加载字体
+	DWORD ids[] ={IDC_NSTOUCH};
+	//CPaintManagerUI::LoadFontsFromResource(ids,_countof(ids));//从资源加载字体
