@@ -15,6 +15,12 @@ void CUIDataExchange::UDE_Control(CString strCtlName)
 		mapExData[strCtlName].pCtl = p;
 }
 
+void CUIDataExchange::UDE_Control(CControlUI* pCtl)
+{
+	if(!pCtl || pCtl->GetName().IsEmpty()) return;
+	mapExData[pCtl->GetName().GetData()].pCtl = pCtl;
+}
+
 CString CUIDataExchange::GetData(CControlUI* pCtl)
 {
 	return GetData(pCtl->GetName().GetData());
@@ -71,6 +77,7 @@ void CUIDataExchange::InitControlUpdataFunc()
 
 	mapFuncReg[CString(_T("RichEditUI"))] = mapFuncReg[CString(_T("EditUI"))];
 	mapFuncReg[CString(_T("ControlUI"))] = mapFuncReg[CString(_T("EditUI"))];
+	mapFuncReg[CString(_T("LabelUI"))] = mapFuncReg[CString(_T("EditUI"))];
 
 	mapFuncReg[CString(_T("ComboUI"))] = _tagFuncUpdate(
 		std::bind(&CUIDataExchange::UpdateGetCombo, this, std::placeholders::_1, std::placeholders::_2),
@@ -158,6 +165,7 @@ BOOL CUIDataExchange::UpdateData(BOOL bGetFromUI)
 			{
 				CString strClass = iter->second.pCtl->GetClass();
 				auto func = mapFuncReg[strClass];
+				if(!func.get) { func.get = mapFuncReg[CString(_T("ControlUI"))].get;}
 				func.get(iter->second.pCtl, iter->second.cur);
 			}
 			iter++;
@@ -173,6 +181,7 @@ BOOL CUIDataExchange::UpdateData(BOOL bGetFromUI)
 			{
 				CString strClass = iter->second.pCtl->GetClass();
 				auto func = mapFuncReg[strClass];
+				if(!func.set) { func.set = mapFuncReg[CString(_T("ControlUI"))].set;}
 				func.set(iter->second.pCtl, iter->second.cur_);
 				iter->second.cur_.Empty();//Çå¿Õ»º´æÊý¾Ý
 			}
@@ -204,8 +213,11 @@ BOOL CUIDataExchange::UpdateData(BOOL bGetFromUI)
 void CUIDataExchange::UDE_Constraint(CString strCtlName, ConstraintValue opt, LONG value)
 {
 	if(opt > END) return;
-	mapExData[strCtlName].opt = opt;
-	mapExData[strCtlName].value.vLong = value;
+	if(mapExData.find(strCtlName) != mapExData.end())
+	{
+		mapExData[strCtlName].opt = opt;
+		mapExData[strCtlName].value.vLong = value;
+	}
 }
 
 void CUIDataExchange::PassConstraint(BOOL bGetFromUI, ExDataIter& iter)
@@ -350,6 +362,7 @@ void CUIDataExchange::ClearText()
 		CUIString className = iter->second.pCtl->GetClass();
 		if (className == _T("EditUI") ||
 			className == _T("RichEditUI") ||
+			className == _T("LabelUI") ||
 			className == _T("ControlUI"))
 		{
 			iter->second.pCtl->SetText(_T(""));

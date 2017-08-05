@@ -49,9 +49,11 @@ public:
 	CUIDataExchange(CContainerUI*);
 
 	/**
-	** 描述: 映射DUI控件到内部存储,该控件必须有名称属性,并且名称唯一
+	** 描述: 映射DUI控件到内部存储,该控件必须有名称属性,并且名称唯一,必须在m_pRoot容器下
+	** pCtl版无m_pRoot容器下限制
 	**/
 	void UDE_Control(CString strCtlName);
+	void UDE_Control(CControlUI* pCtl);
 
 	/**
 	** 描述: 创建内存数据到UI的约束条件,主要针对控件Text属性,一些简单的单步数学运算
@@ -175,20 +177,22 @@ private:
 template <typename FnClassType, typename O>
 void CUIDataExchange::UDE_Constraint_Func(CString strCtlName, FnClassType pFunc, O* pthis)
 {
-	auto& value = mapExData[strCtlName];
+	auto value = mapExData.find(strCtlName);
+	if(value== mapExData.end()) return;
 	if(pthis)
 	{
-		mapExData[strCtlName].opt = OFUNC;	
-		value.pfun = std::bind(pFunc, pthis, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+		value->second.opt = OFUNC;	
+		value->second.pfun = std::bind(pFunc, pthis, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 	}
 }
 
 template <typename FnType>
 void CUIDataExchange::UDE_Constraint_Func(CString strCtlName, FnType pFunc)
 {
-	auto& value = mapExData[strCtlName];
-	mapExData[strCtlName].opt = FUNC;
-	value.pfun = std::bind(pFunc, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+	auto value = mapExData.find(strCtlName);
+	if(value== mapExData.end()) return;
+	value->second.opt = FUNC;
+	value->second.pfun = std::bind(pFunc, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 }
 
 template <typename FnClassType, typename O>
