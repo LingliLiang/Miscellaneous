@@ -64,7 +64,7 @@ namespace DirectUI
 		}
 	}
 
-	void Inter::IInterMessage::ShareInfo(CControlUI* pControl, std::shared_ptr<_tagLayerInfo>& info)
+	void Inter::IInterMessage::ShareInfo(CControlUI* pControl, std::shared_ptr<_tagLayerInfo>& info, int index /*= -1*/)
 	{
 		if(!pControl || !info.get()) return;
 		if(_tcscmp(pControl->GetClass(), TEXT("GroupUI") ) == 0)
@@ -80,7 +80,10 @@ namespace DirectUI
 		{
 			CLayerUI* pLayer = (CLayerUI*)(pControl);
 			pLayer->m_LayerInfo = info;
-			info->pLayout->AddEnd(pLayer);
+			if(index == -1)
+				info->pLayout->AddEnd(pLayer);
+			else
+				info->pLayout->AddAt(index,pLayer);
 		}
 	}
 
@@ -774,6 +777,7 @@ namespace DirectUI
 			this->NeedParentUpdate();
 			break;
 		case LayerItemDrag:
+			//DUI__Trace(L"LayerItemDrag = %s\n",event_->pSender->GetClass());
 			MakeCursorImage(m_pManager->GetPaintDC(),GetFitLayoutRc(event_->pSender->GetPos()),event_->ptMouse);
 			m_miInfo.src = event_->pSender;
 			m_hCursor.ptMove = event_->ptMouse;
@@ -809,7 +813,7 @@ namespace DirectUI
 			Invalidate();
 			break;
 		case LayerItemSelect:
-			DUI__Trace(L"name of control = %s\n",event_->pSender->GetName().GetData());
+			//DUI__Trace(L"name of control = %s\n",event_->pSender->GetName().GetData());
 			if (!(GetKeyState(VK_CONTROL) & 0x8000))
 			{
 				m_MapSelControl.clear();
@@ -1532,6 +1536,23 @@ namespace DirectUI
 		return __super::Add(pControl);
 	}
 
+	bool CLayerLayoutUI::AddAt(CControlUI* pControl, int nIndex)
+	{
+		if(pControl == NULL) return false;
+		if(_tcscmp(pControl->GetClass(), TEXT("LayerUI") ) == 0)
+		{
+			CLayerUI* pLayer = (CLayerUI*)(pControl->GetInterface(DUI_CTR_LAYERITEM));
+			ShareInfo(pControl,m_LayerInfo,nIndex+1/*z- form 1*/);
+			AttachEvent(pControl,pLayer,(EventFunc)&CLayerUI::OnChildEvent,true);
+		}
+		else if(_tcscmp(pControl->GetClass(), TEXT("GroupUI") ) == 0)
+		{
+			//ShareInfo(pControl,m_LayerInfo);
+			//GroupUI不要使用,未完成
+		}
+		return __super::AddAt(pControl,nIndex);
+	}
+
 	bool CLayerLayoutUI::Remove(CControlUI * pControl)
 	{
 		if (pControl == NULL) return false;
@@ -1594,6 +1615,62 @@ namespace DirectUI
 		mapzo[size]= src;
 		slot_ZItemsChange.Active(mapzo);
 	}
+
+	void CLayerLayoutUI::AddAt(UINT z, CLayerUI* src)
+	{
+		UINT size =(UINT)mapZIC.size()+1;
+		std::pair<UINT,CLayerUI*> zictemp;
+		{
+			auto item = mapZIC.find(z);
+			if(item == mapZIC.end()) {
+				if(size == z)
+				{
+					AddEnd(src);
+				}
+				return;
+			}
+		}
+		auto iter = mapZIC.begin();
+		auto iterChange = mapZIC.begin();
+		auto make_temp=[&]()->bool
+		{
+			auto tsrc = iter->second;
+			if((++iter) != mapZIC.end())
+			{
+				zictemp = ::make_pair(iter->first,tsrc);
+				--iter;
+				return true;
+			}
+			--iter;
+			zictemp = ::make_pair(size,tsrc);
+			return false;
+		};
+		for(;iter!=mapZIC.end();iter++)
+		{
+			if(iter->first == z)
+			{
+				iterChange = iter;
+				bool btmp = make_temp();
+				iter->second = src;
+				src->SetZ(iter->first);
+				if(!btmp) break;
+			}
+			if(iter->first > z)
+			{
+				auto tsrc = zictemp.second;
+				assert(iter->first ==  zictemp.first);
+				bool btmp = make_temp();
+				tsrc->SetZ(iter->first);
+				iter->second = tsrc;
+				if(!btmp) break;
+			}
+		}
+		mapZIC[zictemp.first] = zictemp.second;
+		zictemp.second->SetZ(zictemp.first);
+		std::map<UINT, CLayerUI*> mapzo(iterChange,mapZIC.end());
+		slot_ZItemsChange.Active(mapzo);
+	}
+
 
 	CLayerUI* CLayerLayoutUI::GetZItem(UINT z)
 	{
@@ -1709,44 +1786,72 @@ namespace DirectUI
 
 	void CLayerLayoutUI::MoveItem()
 	{
-		if(m_miInfo.dst)
+		CContainerUI* pLayout = nullptr;
+		CControlUI* pMove = nullptr;
+		auto MoveControl = [&]() -> bool
 		{
-			ASSERT(m_miInfo.gp_dst);
-			CContainerUI* pLayout = nullptr;
-			CControlUI* pMove = nullptr;
-			for(auto iter = m_MapSelControl.begin(); iter != m_MapSelControl.end(); ++iter)
+			pLayout = GetParentLayout(pMove);
+			if(pLayout)
 			{
-				pMove = iter->first;
-				pLayout = GetParentLayout(pMove);
-				if(pLayout)
+				if(pMove->GetInterface(DUI_CTR_GROUPHEADER))
 				{
-					if(iter->first->GetInterface(DUI_CTR_GROUPHEADER))
+					// pLayout is GroupUI
+					pMove = pLayout;
+					pLayout = (CGroupUI*)GetParentLayout(pMove);
+				}
+				//DUI__Trace(L"Src %p, pMove %p -> to %p",m_miInfo.src, pMove,m_miInfo.dst);
+
+				int indexMove = m_miInfo.gp_dst->GetItemIndex(pMove);
+				pLayout->RemoveNotDestroy(pMove);
+				if(m_miInfo.bGroup)
+				{
+					m_miInfo.gp_dst->Add(pMove);
+					//not support group yet
+					//ChangeZOrder((CLayerUI*)pMove,(CLayerUI*)m_miInfo.dst,false);
+				}
+				else
+				{
+					int index = m_miInfo.gp_dst->GetItemIndex(m_miInfo.dst);
+					//DUI__Trace(L"index %d, dst count %d",index, m_miInfo.gp_dst->GetCount());
+
+					if(index == -1) 
 					{
-						// pLayout is GroupUI
-						pMove = pLayout;
-						pLayout = (CGroupUI*)GetParentLayout(pMove);
+						pLayout->AddAt(pMove,indexMove);//failed restone 
+						return false;
 					}
-					pLayout->RemoveNotDestroy(pMove);
-					if(m_miInfo.bGroup)
+					if(m_miInfo.bTop)
 					{
-						m_miInfo.gp_dst->Add(pMove);
-						//not support group yet
-						//ChangeZOrder((CLayerUI*)pMove,(CLayerUI*)m_miInfo.dst,false);
+						m_miInfo.gp_dst->AddAt(pMove,index);
+						ChangeZOrder((CLayerUI*)pMove,(CLayerUI*)m_miInfo.dst,true);//not support group yet
 					}
 					else
 					{
-						int index = m_miInfo.gp_dst->GetItemIndex(m_miInfo.dst);
-						if(index == -1) continue;
-						if(m_miInfo.bTop)
-						{
-							m_miInfo.gp_dst->AddAt(pMove,index);
-							ChangeZOrder((CLayerUI*)pMove,(CLayerUI*)m_miInfo.dst,true);//not support group yet
-						}
-						else
-						{
-							m_miInfo.gp_dst->AddAt(pMove,++index);
-							ChangeZOrder((CLayerUI*)pMove,(CLayerUI*)m_miInfo.dst,false);//not support group yet
-						}
+						m_miInfo.gp_dst->AddAt(pMove,++index);
+						ChangeZOrder((CLayerUI*)pMove,(CLayerUI*)m_miInfo.dst,false);//not support group yet
+					}
+				}
+			}
+			return true;
+		};
+		if(m_miInfo.dst)
+		{
+			ASSERT(m_miInfo.gp_dst);
+			
+			auto iter = m_MapSelControl.find(m_miInfo.src);
+			if(iter == m_MapSelControl.end())//unselected control move
+			{
+				pMove = m_miInfo.src;
+				MoveControl();
+			}
+			else
+			{
+				//selected control move
+				for(iter = m_MapSelControl.begin(); iter != m_MapSelControl.end(); ++iter)
+				{
+					pMove = iter->first;
+					if(!MoveControl())
+					{
+						continue;
 					}
 				}
 			}

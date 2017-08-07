@@ -97,7 +97,7 @@ namespace DirectUI
 		protected:
 			std::shared_ptr<_tagLayerInfo> m_LayerInfo;
 			void AttachEvent(CControlUI* pControl, IInterMessage* pthis, EventFunc pfunc, bool self = false);
-			void ShareInfo(CControlUI* pControl, std::shared_ptr<_tagLayerInfo>& info);
+			void ShareInfo(CControlUI* pControl, std::shared_ptr<_tagLayerInfo>& info,int index = -1);
 			void CheckControl(CControlUI* pControl);
 		};
 
@@ -144,6 +144,8 @@ namespace DirectUI
 		void SetAttribute(LPCTSTR pstrName, LPCTSTR pstrValue);
 	};
 
+
+	//GroupUI不要使用,未完成
 	class CGroupUI
 		: public CVerticalLayoutUI , public Inter::IInterMessage
 	{
@@ -195,6 +197,7 @@ namespace DirectUI
 		: public CVerticalLayoutUI , public Inter::IInterMessage
 	{
 		friend class CGroupUI;
+		friend class Inter::IInterMessage;
 	public:
 		CLayerLayoutUI();
 
@@ -272,13 +275,15 @@ namespace DirectUI
 		void SelectAll();
 		void SelectNone();
 		bool Add(CControlUI* pControl);
+		bool AddAt(CControlUI* pControl, int nIndex);
 		bool Remove(CControlUI* pControl);
 		bool RemoveNotDestroy(CControlUI* pControl);
 		void RemoveAll();
+		CLayerUI* GetZItem(UINT z);
+		void RemoveSelected();
+protected:
 		void AddEnd(CLayerUI* src);
 		void AddAt(UINT z, CLayerUI* src);
-		void RemoveSelected();
-		CLayerUI* GetZItem(UINT z);
 	protected:
 		void RemoveLayer(CLayerUI* rmc);
 		void ChangeZOrder(CLayerUI* src, CLayerUI* dst, bool before); 
