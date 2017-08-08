@@ -1821,12 +1821,12 @@ namespace DirectUI
 					}
 					if(m_miInfo.bTop)
 					{
-						m_miInfo.gp_dst->AddAt(pMove,index);
+						m_miInfo.gp_dst->CContainerUI::AddAt(pMove,index);
 						ChangeZOrder((CLayerUI*)pMove,(CLayerUI*)m_miInfo.dst,true);//not support group yet
 					}
 					else
 					{
-						m_miInfo.gp_dst->AddAt(pMove,++index);
+						m_miInfo.gp_dst->CContainerUI::AddAt(pMove,++index);
 						ChangeZOrder((CLayerUI*)pMove,(CLayerUI*)m_miInfo.dst,false);//not support group yet
 					}
 				}

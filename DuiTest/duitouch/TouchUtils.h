@@ -1,6 +1,9 @@
 #pragma once
 
 #include <Tpcshrd.h>
+#include "TouchSink.h"
+// Manipulation implementation file
+//#include <manipulations_i.c>
 
 class IHandleTouchInput
 {
@@ -106,11 +109,33 @@ public:
 			ulFlag = TWF_WANTPALM | TWF_FINETOUCH;
 			BOOL ret = ::RegisterTouchWindow(hWnd,ulFlag);
 		}
+		HRESULT hr = CoInitialize(0);
+		hr = CoCreateInstance(CLSID_ManipulationProcessor,
+			NULL,
+			CLSCTX_INPROC_SERVER,
+			IID_IUnknown,
+			(VOID**)(&m_pIManipProc)
+			);
+		hr = CoCreateInstance(CLSID_InertiaProcessor,
+			NULL,
+			CLSCTX_INPROC_SERVER,
+			IID_IUnknown,
+			(VOID**)(&m_pIInertProc)
+			);
+		assert(m_pIManipProc);
+		assert(m_pIInertProc);
+		m_pManipulationEventSink.Release();
+		m_pManipulationEventSink.Attach(new CManipulationEventSink(m_pIManipProc,m_pIInertProc, hWnd));
 	}
 
 	void DestoryTouchControl(HWND hWnd)
 	{
 		::UnregisterTouchWindow(hWnd);
+		m_pManipulationEventSink->FreeConnect();
+		m_pManipulationEventSink.Release();
+		m_pIInertProc.Release();
+		m_pIManipProc.Release();
+		::CoUninitialize();
 	}
 
 	bool DecodeTouch(WPARAM wParam, LPARAM lParam)
@@ -137,7 +162,19 @@ public:
 			{
 				TOUCHINPUT& tin = tins[index];
 				POINT ptScreen = {TOUCH_COORD_TO_PIXEL(tin.x),TOUCH_COORD_TO_PIXEL(tin.y)};
-				if(m_pHandleInput) handled = m_pHandleInput->HandleTouchInput(ptScreen,&tin);
+				if (tin.dwFlags & TOUCHEVENTF_DOWN) {
+					m_pIManipProc->ProcessDown(tin.dwID, static_cast<FLOAT>(tin.x), static_cast<FLOAT>(tin.y));
+					handled = true;
+				}
+				if (tin.dwFlags & TOUCHEVENTF_UP) {
+					m_pIManipProc->ProcessUp(tin.dwID, static_cast<FLOAT>(tin.x), static_cast<FLOAT>(tin.y));
+					handled = true;
+				}
+				if (tin.dwFlags & TOUCHEVENTF_MOVE) {
+					m_pIManipProc->ProcessMove(tin.dwID, static_cast<FLOAT>(tin.x), static_cast<FLOAT>(tin.y));
+					handled = true;
+				}
+				//if(m_pHandleInput) handled = m_pHandleInput->HandleTouchInput(ptScreen,&tin);
 			}
 		}
 		else  
@@ -161,7 +198,7 @@ public:
 		case WM_GESTURENOTIFY:
 			SetupGestureControl(hWnd);
 			break;
-		///http://msdn.microsoft.com/en-us/library/bb969148.aspx
+			///http://msdn.microsoft.com/en-us/library/bb969148.aspx
 		case WM_TABLET_QUERYSYSTEMGESTURESTATUS:
 			{
 				POINT pt = {GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
@@ -181,11 +218,26 @@ public:
 			res = DecodeTouch(wParam, lParam) ? 0 : 0;
 			bHandle = 1;
 			break;
+		case WM_TIMER:       
+			if (m_pIInertProc && wParam == TIMER_INERTPROC){
+				BOOL b;       
+				m_pIInertProc->Process(&b); 
+				bHandle = 1;
+			}
+			break;
 		default:
 			break;
 		}
 		return res;
 	}
+
+
+	///// Smart Pointer to a global reference of a manipulation processor, event sink
+	CComPtr<IManipulationProcessor> m_pIManipProc;
+	CComPtr<IInertiaProcessor> m_pIInertProc;
+
+	//// Set up a variable to point to the manipulation event sink implementation class    
+	CComPtr<CManipulationEventSink> m_pManipulationEventSink;
 
 	///Pointer Input Message
 	///https://msdn.microsoft.com/en-us/library/hh454877(v=vs.85).aspx

@@ -4,16 +4,24 @@
 #include <manipulations.h>
 #include <ocidl.h>
 
+
+///https://msdn.microsoft.com/zh-cn/library/windows/desktop/dd371594(v=vs.85).aspx
+
+#define TIMER_INERTPROC 0xFFFFFFFC
+
 class CManipulationEventSink : _IManipulationEvents
 {
 public:
-	CManipulationEventSink(IManipulationProcessor *manip, HWND hWnd);
+	CManipulationEventSink(IManipulationProcessor *manip, IInertiaProcessor *pInert, HWND hWnd);
+	CManipulationEventSink(IInertiaProcessor *pInert, HWND hWnd);
 
 	int GetStartedEventCount();
 	int GetDeltaEventCount();
 	int GetCompletedEventCount();
 	double CManipulationEventSink::GetX();
 	double CManipulationEventSink::GetY();
+
+	void FreeConnect();
 
 	~CManipulationEventSink();
 
@@ -68,5 +76,10 @@ private:
 	IConnectionPointContainer* m_pConPointContainer;
 	IConnectionPoint* m_pConnPoint;
 
+	DWORD dwCookie;
+
 	HWND m_hWnd;
+
+	IInertiaProcessor*      m_pInert;
+	BOOL fExtrapolating;
 };
