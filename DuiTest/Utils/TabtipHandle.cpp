@@ -138,6 +138,8 @@ private:
 
 static const int desk_dpi = GetDeviceCaps(::GetWindowDC(::GetDesktopWindow()), LOGPIXELSY);
 
+static HWND g_hTabtip = ::FindWindow(_TEXT("IPTip_Main_Window"), NULL);
+
 DWORD g_inputPaneCookie = 0;
 CComPtr<IFrameworkInputPaneHandler> handler(new Observer());
 CComPtr<IFrameworkInputPane> g_FrameworkinputPane;
@@ -263,12 +265,42 @@ BOOL __cdecl IsVirtualKeyboardVisible()
 	return bRet;
 }
 
+BOOL IsTabtipVisible()
+{
+	g_hTabtip = ::FindWindow(_TEXT("IPTip_Main_Window"), NULL);
+	auto win_style = GetWindowLongPtr(g_hTabtip, GWL_STYLE);
+	
+	//Keyboard is not visible - when "IPTIP_Main_Window" is NOT present
+	if (g_hTabtip == 0 || win_style == 0)
+	{
+		return FALSE;
+	}
+
+	//Keyboard is not visible - when "IPTIP_Main_Window" is present but disabled
+	if (win_style & WS_DISABLED)
+	{
+		return FALSE;
+	}
+	//Keyboard is not visible - when "IPTIP_Main_Window" is present but NOT disabled and NOT visible
+	if (!(win_style & WS_VISIBLE) && !(win_style & WS_DISABLED) )
+	{
+		return FALSE;
+	}
+	//Keyboard is Visible - when "IPTIP_Main_Window" is present, NOT disabled and IS visible
+	if ((win_style & WS_VISIBLE) && !(win_style & WS_DISABLED))
+	{
+		return TRUE;
+	}
+	return FALSE;
+}
 
 int TabtipVisible(BOOL bShow)
 {
 	HRESULT hr = S_OK;
 	ITipInvocation* tip = NULL;
-	BOOL vkv = IsVirtualKeyboardVisible();
+	//BOOL vkv = IsVirtualKeyboardVisible();
+	BOOL vkv = IsTabtipVisible();
+
 	if(bShow == vkv) return 0;
 	__try
 	{
@@ -299,11 +331,10 @@ int TabtipVisible(BOOL bShow)
 	return 0;
 }
 
-
 void TabtipTurnOff()
 {
-	HWND hKb = ::FindWindow(_TEXT("IPTip_Main_Window"), NULL);
-	::PostMessage(hKb, WM_SYSCOMMAND, SC_CLOSE, 0);
+	g_hTabtip = ::FindWindow(_TEXT("IPTip_Main_Window"), NULL);
+	::PostMessage(g_hTabtip, WM_SYSCOMMAND, SC_CLOSE, 0);
 }
 
 
