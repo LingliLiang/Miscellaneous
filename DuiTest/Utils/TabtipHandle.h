@@ -4,6 +4,8 @@ void AdviseinputPane(HWND hWnd);
 
 void UnAdviseinputPane();
 
+HWND TabtipWnd();
+
 BOOL IsTabtipVisible();
 
 // Show or Hide touch keyboard in win10?

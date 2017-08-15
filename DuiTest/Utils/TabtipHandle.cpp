@@ -139,6 +139,9 @@ private:
 static const int desk_dpi = GetDeviceCaps(::GetWindowDC(::GetDesktopWindow()), LOGPIXELSY);
 
 static HWND g_hTabtip = ::FindWindow(_TEXT("IPTip_Main_Window"), NULL);
+static const int g_Threshold = 50; //ms
+static BOOL g_bTabtipVisible = FALSE;
+static DWORD g_tickCount = 0;
 
 DWORD g_inputPaneCookie = 0;
 CComPtr<IFrameworkInputPaneHandler> handler(new Observer());
@@ -265,6 +268,11 @@ BOOL __cdecl IsVirtualKeyboardVisible()
 	return bRet;
 }
 
+HWND TabtipWnd()
+{
+	return g_hTabtip;
+}
+
 BOOL IsTabtipVisible()
 {
 	g_hTabtip = ::FindWindow(_TEXT("IPTip_Main_Window"), NULL);
@@ -300,8 +308,14 @@ int TabtipVisible(BOOL bShow)
 	ITipInvocation* tip = NULL;
 	//BOOL vkv = IsVirtualKeyboardVisible();
 	BOOL vkv = IsTabtipVisible();
-
-	if(bShow == vkv) return 0;
+	//ATLTRACE(_T("TabtipVisible %d  To %d\n"),vkv,bShow);
+	if(g_Threshold >= ::GetTickCount() - g_tickCount)
+	{
+		//Reenter to quick
+		//ATLTRACE(_T("ReEnter g_bTabtipVisible %d ,now %d To %d\n"),g_bTabtipVisible,vkv,bShow);
+		 if(g_bTabtipVisible == bShow) return 0;
+	}
+	else if(bShow == vkv) return 0;
 	__try
 	{
 		//hr = CoInitialize(0);
@@ -310,6 +324,7 @@ int TabtipVisible(BOOL bShow)
 		if(SUCCEEDED(hr))
 		{
 			tip->Toggle(GetDesktopWindow());
+			g_bTabtipVisible = bShow;
 			IDispatch* disp = NULL;
 			hr = tip->QueryInterface(IID_IDispatch,(void**)&disp);
 			if(SUCCEEDED(hr))
@@ -320,12 +335,13 @@ int TabtipVisible(BOOL bShow)
 		}
 		else
 		{
-			::OutputDebugString(L"ITipInvocation Failed!\n");
+			//ATLTRACE(_T("0x%x CreateInstance Failed\n"),hr);
 		}
 	}
 	__finally
 	{
 		if(tip) tip->Release();
+		g_tickCount = ::GetTickCount();
 		//CoUninitialize();
 	}
 	return 0;
