@@ -125,7 +125,7 @@ public:
 		assert(m_pIManipProc);
 		assert(m_pIInertProc);
 		m_pManipulationEventSink.Release();
-		m_pManipulationEventSink.Attach(new CManipulationEventSink(m_pIManipProc,m_pIInertProc, hWnd));
+		m_pManipulationEventSink.Attach(new CManipulationEventSink(/*m_pIManipProc,*/m_pIInertProc, hWnd));
 	}
 
 	void DestoryTouchControl(HWND hWnd)
@@ -163,15 +163,15 @@ public:
 				TOUCHINPUT& tin = tins[index];
 				POINT ptScreen = {TOUCH_COORD_TO_PIXEL(tin.x),TOUCH_COORD_TO_PIXEL(tin.y)};
 				if (tin.dwFlags & TOUCHEVENTF_DOWN) {
-					m_pIManipProc->ProcessDown(tin.dwID, static_cast<FLOAT>(tin.x), static_cast<FLOAT>(tin.y));
+					m_pIManipProc->ProcessDownWithTime(tin.dwID, static_cast<FLOAT>(tin.x), static_cast<FLOAT>(tin.y), tin.dwTime);
 					handled = true;
 				}
 				if (tin.dwFlags & TOUCHEVENTF_UP) {
-					m_pIManipProc->ProcessUp(tin.dwID, static_cast<FLOAT>(tin.x), static_cast<FLOAT>(tin.y));
+					m_pIManipProc->ProcessUpWithTime(tin.dwID, static_cast<FLOAT>(tin.x), static_cast<FLOAT>(tin.y), tin.dwTime);
 					handled = true;
 				}
 				if (tin.dwFlags & TOUCHEVENTF_MOVE) {
-					m_pIManipProc->ProcessMove(tin.dwID, static_cast<FLOAT>(tin.x), static_cast<FLOAT>(tin.y));
+					m_pIManipProc->ProcessMoveWithTime(tin.dwID, static_cast<FLOAT>(tin.x), static_cast<FLOAT>(tin.y), tin.dwTime);
 					handled = true;
 				}
 				//if(m_pHandleInput) handled = m_pHandleInput->HandleTouchInput(ptScreen,&tin);
@@ -221,6 +221,7 @@ public:
 		case WM_TIMER:       
 			if (m_pIInertProc && wParam == TIMER_INERTPROC){
 				BOOL b;       
+				::OutputDebugStringA("TIMER_INERTPROC\n");
 				m_pIInertProc->Process(&b); 
 				bHandle = 1;
 			}

@@ -160,6 +160,8 @@ HRESULT STDMETHODCALLTYPE CManipulationEventSink::ManipulationStarted(
 	m_pInert->put_ElasticMarginTop   (static_cast<float>(screenRect.top    * 5));
 	m_pInert->put_ElasticMarginRight (static_cast<float>(screenRect.right  * 95));
 	m_pInert->put_ElasticMarginBottom(static_cast<float>(screenRect.bottom * 95));
+	::OutputDebugStringA("CManipulationEventSink::ManipulationStarted\n");
+
 	return S_OK;
 }
 
@@ -213,6 +215,7 @@ HRESULT STDMETHODCALLTYPE CManipulationEventSink::ManipulationCompleted(
 
 	// place your code handler here to do any operations based on the manipulation   
 	if (fExtrapolating){
+		::OutputDebugStringA("CManipulationEventSink::ManipulationCompleted KillTimer\n");
 		//Inertia Complete, stop the timer used for processing      
 		KillTimer(m_hWnd,TIMER_INERTPROC);        
 	}else{ 
@@ -235,6 +238,7 @@ HRESULT STDMETHODCALLTYPE CManipulationEventSink::ManipulationCompleted(
 		m_pInert->put_InitialOriginX(x);
 		m_pInert->put_InitialOriginY(y);
 
+		::OutputDebugStringA("CManipulationEventSink::ManipulationCompleted SetTimer\n");
 
 		// Start a timer
 		SetTimer(m_hWnd,TIMER_INERTPROC, 50, 0);        
