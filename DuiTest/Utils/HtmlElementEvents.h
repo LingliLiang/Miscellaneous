@@ -2,7 +2,8 @@
 
 #include <MsHTML.h>
 #include <ExDispid.h>
-
+#include <atlcomcli.h>
+#include <MsHtmdid.h>
 
 class IDocumentEvents2
 {
@@ -52,15 +53,21 @@ class  CHTMLDocEvent :
 	public HTMLDocumentEvents2 
 {
 public:
+	CHTMLDocEvent();
+
 	// IUnknown
 	STDMETHOD_(ULONG,AddRef)()
 	{
 		InterlockedIncrement(&m_dwRef); 
+		ATLTRACE(_T("CHTMLDocEvent add ref %d \n"), m_dwRef);
 		return m_dwRef;
 	}
 	STDMETHOD_(ULONG,Release)()
 	{
 		ULONG ulRefCount = InterlockedDecrement(&m_dwRef);
+		ATLTRACE(_T("CHTMLDocEvent rel ref %d \n"), m_dwRef);		
+		if(ulRefCount == 0)
+			delete this;
 		return ulRefCount; 
 	}
 	STDMETHOD(QueryInterface)(REFIID riid, LPVOID *ppvObject)
@@ -69,8 +76,8 @@ public:
 
 		if (riid == IID_IDispatch)
 			*ppvObject = static_cast<IDispatch*>(this);
-		else if (riid == DIID_HTMLElementEvents2)
-			*ppvObject = static_cast<HTMLDocumentEvents2*>(this);
+		///*else if (riid == DIID_HTMLElementEvents2)
+		//	*ppvObject = static_cast<HTMLDocumentEvents2*>(this);*/
 		if( *ppvObject != NULL )
 			AddRef();
 		return *ppvObject == NULL ? E_NOINTERFACE : S_OK;

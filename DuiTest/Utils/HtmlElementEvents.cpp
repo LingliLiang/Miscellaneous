@@ -1,5 +1,12 @@
 #include "StdAfx.h"
 #include "HtmlElementEvents.h"
+#include "ExDispID.h"
+
+CHTMLDocEvent::CHTMLDocEvent()
+	:m_dwRef(0),pHandler(NULL)
+{
+
+}
 
 
 void CHTMLDocEvent::DocumentComplete(CComQIPtr<IHTMLDocument2> pDoc)
@@ -9,22 +16,34 @@ void CHTMLDocEvent::DocumentComplete(CComQIPtr<IHTMLDocument2> pDoc)
 	CComPtr<IHTMLElementCollection> pElementColl;
 
 	auto hr = pDoc->get_all(&pElementColl);
-
 	if(SUCCEEDED(hr))
 	{
-		CComPtr<IDispatch> pElemDispatch;
+		CComPtr<IDispatch> pInputDispatch;
 		CComVariant varId(L"input");
-		CComVariant varIndex(0);
-		hr = pElementColl->item(varId,varIndex,&pElemDispatch);
+		hr = pElementColl->tags(varId,&pInputDispatch);
 		if(SUCCEEDED(hr))
 		{
-			CComPtr<IHTMLElement> pElem;
-			hr = pElemDispatch->QueryInterface(IID_IHTMLElement,(LPVOID*)&pElem);
-			if(SUCCEEDED(hr))
-			{
-				ConnectEvents(pElem);
-			}
-		}
+			CComPtr<IHTMLElementCollection> pInputColl;
+			hr = pInputDispatch->QueryInterface(IID_IHTMLElementCollection,(LPVOID*)&pInputColl);
+			if(SUCCEEDED(hr)){
+				long nitems = 0;
+				hr = pInputColl->get_length(&nitems);
+				if(SUCCEEDED(hr)){
+					for (long i=0;i<nitems;i++){
+						CComVariant varIndex(i);
+						CComPtr<IHTMLElement> pElem;
+						CComPtr<IDispatch> pElemDispatch;
+						hr = pInputColl->item( varIndex, varIndex, &pElemDispatch );
+						if(FAILED(hr)) break;
+						hr = pElemDispatch->QueryInterface(IID_IHTMLElement,(LPVOID*)&pElem);
+						if(SUCCEEDED(hr))
+						{
+							ConnectEvents(pElem);
+						}
+					}
+				}
+			}//InputColl
+		}//tags
 	}
 
 }
@@ -35,11 +54,22 @@ void CHTMLDocEvent::ConnectEvents(CComPtr<IHTMLElement> pElem)
 	CComPtr<IConnectionPoint> pCp;
 	CComPtr<IConnectionPointContainer> pCpc;
 	DWORD dwCookie;
-
-	auto hr = pElem->QueryInterface(IID_IConnectionPointContainer,(LPVOID*)&pCpc);
+	//CComBSTR str;
+	//CComBSTR strName;
+	//pElem->get_id(&str);
+	//pElem->get_tagName(&strName);
+	//::OutputDebugStringW(str.m_str);
+	//::OutputDebugStringA(" ");
+	//::OutputDebugStringW(strName.m_str);
+	CComPtr<IHTMLInputTextElement> pTextElement;
+	auto hr = pElem->QueryInterface(IID_IHTMLInputTextElement,(LPVOID*)&pTextElement);
+	if(FAILED(hr)) return;
+	hr = pTextElement->QueryInterface(IID_IConnectionPointContainer,(LPVOID*)&pCpc);
 	if(SUCCEEDED(hr))
 	{
-		hr = pCpc->FindConnectionPoint(DIID_HTMLElementEvents2,&pCp);
+		/*HTMLInputTextElementEvents2*/
+		//DIID_HTMLinputTextElementEvents2;
+		hr = pCpc->FindConnectionPoint(DIID_HTMLInputTextElementEvents2,&pCp);
 		if(SUCCEEDED(hr))
 		{
 			hr = pCp->Advise(this,&dwCookie);
@@ -76,12 +106,15 @@ HRESULT CHTMLDocEvent::Invoke( DISPID dispIdMember,
 	switch (dispIdMember)
 	{
 	case DISPID_HTMLELEMENTEVENTS2_onfocusin:
+		onfocusin(pEvtObj);
 		break;
 	case DISPID_HTMLELEMENTEVENTS2_onfocusout:
+		onfocusout(pEvtObj);
 		break;
 	default:
 		break;
 	}
+	pEvtObj->Release();
 	return S_OK;
 }
 
@@ -278,6 +311,8 @@ void CHTMLDocEvent::onfocusin(__in IHTMLEventObj* pEvtObj){
 	{
 		pHandler->onfocusin(pEvtObj);
 	}
+	::OutputDebugStringA("onfocusin\n");
+	::TabtipVisible(TRUE);
 }
 
 void CHTMLDocEvent::onfocusout(__in IHTMLEventObj* pEvtObj){
@@ -285,6 +320,8 @@ void CHTMLDocEvent::onfocusout(__in IHTMLEventObj* pEvtObj){
 	{
 		pHandler->onfocusout(pEvtObj);
 	}
+	::OutputDebugStringA("onfocusout\n");
+	::TabtipVisible(FALSE);
 }
 
 void CHTMLDocEvent::onactivate(__in IHTMLEventObj* pEvtObj)
