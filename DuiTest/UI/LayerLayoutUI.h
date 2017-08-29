@@ -6,6 +6,7 @@
 #include <memory>
 #include <functional>
 #include <map>
+#include <limits>
 #include "FunctionSlot.hpp"
 
 extern const TCHAR* DUI_CTR_LAYERLAYOUT;
@@ -68,6 +69,11 @@ namespace DirectUI
 		CString sItemSelectedImage;
 		CLayerLayoutUI* pLayout;//main layout pointer
 		std::map<CControlUI*, ControlPosInfo> mapControl; //control pos map
+
+		bool bLayerInit; //track main layer init finish;
+		/** using painting method to notify z order changed**/
+		DWORD dwPaintIndexCur; //begain LayerLayout repaint set to 0,when paint a layer ,it will increment 1,an change z of layer
+
 		_tagLayerInfo()
 			:rcLayerInset(10,0,0,0),rcDragTest(0,0,4,4),nLayerHeight(30),nGroupHeaderHeight(30),
 			dwItemMoveColor(0xFFffae00),dwItemHotBkColor(0xFF6B9299),
@@ -92,23 +98,44 @@ namespace DirectUI
 		public:
 			typedef bool (IInterMessage::*EventFunc)(void*);
 
+			//pass message to high level control, finally to LayerLayout
 			virtual void Message(TEventUI* event_,InterNotifyMsg what) = 0;
+
+			//use to attach child control (or self) event before DoEvent call;
 			virtual bool OnChildEvent(void* event_in) = 0;
 		protected:
-			std::shared_ptr<_tagLayerInfo> m_LayerInfo;
+			//info of layer
+			std::shared_ptr<_tagLayerInfo> m_spLayerInfo;
+			//track all controls event
 			void AttachEvent(CControlUI* pControl, IInterMessage* pthis, EventFunc pfunc, bool self = false);
-			void ShareInfo(CControlUI* pControl, std::shared_ptr<_tagLayerInfo>& info,int index = -1);
+			//share m_spLayerInfo to all relative controls
+			void ShareInfo(CControlUI* pControl, std::shared_ptr<_tagLayerInfo>& info);
+			///updata controls rect to m_spLayerInfo's mapControl
 			void CheckControl(CControlUI* pControl);
 		};
 
+		class CSwitch
+		{
+		public:
+			CSwitch(bool & b):b_(b)
+			{
+					b_ = !b_;
+			}
+			~CSwitch()
+			{
+					b_ = !b_;			
+			}
+		private:
+			CSwitch(CSwitch&);
+			void operator = (const CSwitch&); 
+			bool &b_;
+		};
 	}
 
 	class CLayerUI  : public CHorizontalLayoutUI, public Inter::IInterMessage
 	{
-		friend class CZOrder;
 		friend class CGroupUI;
 		friend class CLayerLayoutUI;
-		//friend void Inter::ShareInfo(CControlUI* pControl, std::shared_ptr<_tagLayerInfo>& info);
 	public:
 		CLayerUI();
 		virtual LPCTSTR GetClass() const;
@@ -123,8 +150,12 @@ namespace DirectUI
 		LPVOID GetPtr() { return m_ptr; }
 		VOID SetPtr(LPVOID ptr) { m_ptr = ptr; }
 		UINT GetZ() { return m_nZ; }
+
+		// Event fire functions
+		CFuncSlot_2<CLayerUI*,UINT> slot_ZChange; //Fire z order changed
+
 	protected:
-		void SetZ(UINT z) { m_nZ = z; }
+		void SetZ(UINT z);
 
 		virtual void Message(TEventUI* event_, Inter::InterNotifyMsg what);
 
@@ -144,8 +175,6 @@ namespace DirectUI
 		void SetAttribute(LPCTSTR pstrName, LPCTSTR pstrValue);
 	};
 
-
-	//GroupUI不要使用,未完成
 	class CGroupUI
 		: public CVerticalLayoutUI , public Inter::IInterMessage
 	{
@@ -177,6 +206,7 @@ namespace DirectUI
 
 		CGroupHeaderUI* GetHeaderUI();
 
+		virtual void DoPaint(HDC hDC, const RECT& rcPaint);
 
 		void DoEvent(TEventUI& event_);
 		virtual bool OnChildEvent(void* event_in);
@@ -197,7 +227,6 @@ namespace DirectUI
 		: public CVerticalLayoutUI , public Inter::IInterMessage
 	{
 		friend class CGroupUI;
-		friend class Inter::IInterMessage;
 	public:
 		CLayerLayoutUI();
 
@@ -275,20 +304,18 @@ namespace DirectUI
 		void SelectAll();
 		void SelectNone();
 		bool Add(CControlUI* pControl);
-		bool AddAt(CControlUI* pControl, int nIndex);
 		bool Remove(CControlUI* pControl);
 		bool RemoveNotDestroy(CControlUI* pControl);
 		void RemoveAll();
-		CLayerUI* GetZItem(UINT z);
-		void RemoveSelected();
-protected:
 		void AddEnd(CLayerUI* src);
 		void AddAt(UINT z, CLayerUI* src);
+		void RemoveSelected();
+		CLayerUI* GetZIndexItem(UINT z); //
 	protected:
 		void RemoveLayer(CLayerUI* rmc);
-		void ChangeZOrder(CLayerUI* src, CLayerUI* dst, bool before); 
-		void LauchChangeZOrder();
-		std::map<UINT, CLayerUI*> mapZOCache;
+		//void ChangeZOrder(CLayerUI* src, CLayerUI* dst, bool before); 
+		//void LauchChangeZOrder();
+		//std::map<UINT, CLayerUI*> mapZOCache;
 	public:
 
 		CFuncSlot_1<std::vector<CLayerUI*>> slot_SelectItems; //Fire select items function
@@ -305,8 +332,8 @@ protected:
 		bool CheckRectInvalid(RECT &rc);
 		std::vector<CLayerUI*> MakeSelectItems();
 private:
-		std::map<UINT, CLayerUI*> mapZIC;
-		std::map<CControlUI*, void*> m_MapSelControl;
+		//std::map<UINT, CLayerUI*> mapZIC;
+		std::map<CControlUI*, void*> m_mapSel;
 		MoveItemInfo m_miInfo;
 		struct _tagCursorRes
 		{
@@ -334,9 +361,11 @@ private:
 		POINT ptLastMouse;
 		RECT m_rcNewPos;
 
-		bool m_bTrackEvents;
+		bool m_bTrackEvents; //监控子控件的InterNotifyMsg事件
 		bool m_bMultiSel;
 		bool m_bEnsureVisible; //选中的时候是否移动位置
+
+		bool m_bForbidPaint; // 不绘制
 	};
 
 
