@@ -276,6 +276,7 @@
 	</ScrollBar>
   <Edit parent="Label" notifies="setfocus killfocus timer menu return textchanged windowinit(root)">
     <Attribute name="readonly" default="false" type="BOOL" comment="是否只读,如(false)"/>
+    <Attribute name="numberonly" default="false" type="BOOL" comment="是否数值,如(false)"/>
 		<Attribute name="password" default="false" type="BOOL" comment="是否显示密码字符,如(false)"/>
 		<Attribute name="maxchar" default="255" type="INT" comment="输入字符最大长度，如(100)"/>
 		<Attribute name="normalimage" default="" type="STRING" comment="普通状态图片"/>

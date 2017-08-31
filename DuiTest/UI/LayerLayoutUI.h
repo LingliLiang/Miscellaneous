@@ -59,7 +59,6 @@ namespace DirectUI
 		size_t nLayerHeight; //default layer height
 		size_t nGroupHeaderHeight;  //default group...
 
-		//CLayerLayoutUI
 		DWORD dwItemMoveColor; // line and rect
 		//DWORD dwItemBkColor; //bkcolor
 		DWORD dwItemHotBkColor;
@@ -67,12 +66,15 @@ namespace DirectUI
 		//CString sItemNormalImage; //bkimage
 		CString sItemHotImage;
 		CString sItemSelectedImage;
-		CLayerLayoutUI* pLayout;//main layout pointer
-		std::map<CControlUI*, ControlPosInfo> mapControl; //control pos map
 
-		bool bLayerInit; //track main layer init finish;
+		BOOL bLayerInit; //track main layer init finish;
 		/** using painting method to notify z order changed**/
 		DWORD dwPaintIndexCur; //begain LayerLayout repaint set to 0,when paint a layer ,it will increment 1,an change z of layer
+
+		std::map<CControlUI*, ControlPosInfo> mapControl; //all control pos in main layout
+		std::map<UINT, CLayerUI*> mapLayers; //all layer, by index of z
+
+		CLayerLayoutUI* pLayout;//main layout pointer
 
 		_tagLayerInfo()
 			:rcLayerInset(10,0,0,0),rcDragTest(0,0,4,4),nLayerHeight(30),nGroupHeaderHeight(30),
@@ -111,7 +113,9 @@ namespace DirectUI
 			//share m_spLayerInfo to all relative controls
 			void ShareInfo(CControlUI* pControl, std::shared_ptr<_tagLayerInfo>& info);
 			///updata controls rect to m_spLayerInfo's mapControl
-			void CheckControl(CControlUI* pControl);
+			void CheckMapControl(CControlUI* pControl);
+			///erase m_spLayerInfo's mapControl and it's sub-controls
+			void RemoveMapControl(CControlUI* pControl);
 		};
 
 		class CSwitch
@@ -147,23 +151,27 @@ namespace DirectUI
 		void DoEvent(TEventUI& event_);
 		virtual bool OnChildEvent(void* event_in);
 
-		LPVOID GetPtr() { return m_ptr; }
-		VOID SetPtr(LPVOID ptr) { m_ptr = ptr; }
-		UINT GetZ() { return m_nZ; }
+		LPVOID GetPtr(UINT index = 0); // get storage of user information by index
+		UINT SetPtr(LPVOID ptr, UINT index = 0); //return valid index
+		UINT GetZ();
+		void SetZ(UINT z); //Note ,it will change layer position in LayerLayout
 
 		// Event fire functions
-		CFuncSlot_2<CLayerUI*,UINT> slot_ZChange; //Fire z order changed
+		CFuncSlot_1<CLayerUI*> slot_ZChange; //Fire z order changed
+		CFuncSlot_1<CLayerUI*> slot_SelectItems; //Fire select items function
 
 	protected:
-		void SetZ(UINT z);
+		void SetInnerZ(UINT z);
 
 		virtual void Message(TEventUI* event_, Inter::InterNotifyMsg what);
 
 		bool m_bButtonDown;
 		bool m_bDrag;
 		UINT m_nZ;
-		LPVOID m_ptr;
+		
 		POINT m_ptLBDown;
+
+		CStdPtrArray m_ptr;
 	};
 
 	class CGroupHeaderUI : public CHorizontalLayoutUI
@@ -179,7 +187,6 @@ namespace DirectUI
 		: public CVerticalLayoutUI , public Inter::IInterMessage
 	{
 		friend class CLayerLayoutUI;
-		//friend void Inter::ShareInfo(CControlUI* pControl, std::shared_ptr<_tagLayerInfo>& info);
 	public:
 		CGroupUI();
 		~CGroupUI();
@@ -188,11 +195,14 @@ namespace DirectUI
 		virtual UINT GetControlFlags() const;
 		virtual SIZE EstimateSize(SIZE szAvailable);
 
-		//Note: if U add some controls, don't add at index 0; index 0 -  place element GroupHeader
+		//Note: if U add some controls, don't add at index 0,it won't work; index 0 -  place element GroupHeader
 		bool Add(CControlUI* pControl);
+		bool AddAt(CControlUI* pControl, int nIndex);
 		bool Remove(CControlUI* pControl);
-		bool RemoveNotDestroy(CControlUI* pControl);
+		bool RemoveNotDestroy(CControlUI* pControl); //not virtual
+		//bool RemoveAt(int nIndex);
 		void RemoveAll();
+
 		void SetAttribute(LPCTSTR pstrName, LPCTSTR pstrValue);
 		void SetItemAttribute(LPCTSTR pstrName, LPCTSTR pstrValue);
 		void SetPos(RECT rc);
@@ -299,28 +309,26 @@ namespace DirectUI
 		virtual void SetScrollPos(SIZE szPos);
 		void EnsureVisible(int nIndex);
 
-		bool SelectItem(UINT nZIndex);
-		bool SelectExcludeItem(UINT nZIndex);
-		void SelectAll();
-		void SelectNone();
 		bool Add(CControlUI* pControl);
+		bool AddAt(CControlUI* pControl, int nIndex);
 		bool Remove(CControlUI* pControl);
-		bool RemoveNotDestroy(CControlUI* pControl);
+		bool RemoveNotDestroy(CControlUI* pControl); //not virtual
+		//bool RemoveAt(int nIndex);
 		void RemoveAll();
-		void AddEnd(CLayerUI* src);
-		void AddAt(UINT z, CLayerUI* src);
+
 		void RemoveSelected();
-		CLayerUI* GetZIndexItem(UINT z); //
-	protected:
-		void RemoveLayer(CLayerUI* rmc);
-		//void ChangeZOrder(CLayerUI* src, CLayerUI* dst, bool before); 
-		//void LauchChangeZOrder();
-		//std::map<UINT, CLayerUI*> mapZOCache;
+		void RemoveSelectedLayer();
+		void RemoveSelectedGroup();
+		bool RemoveLayer(CLayerUI* rmc);
+		bool LayerSelect(UINT nZIndex);
+		bool LayerDeselect(UINT nZIndex);
+		void LayerSelectAll();
+		void LayerSelectNone();
+		bool LayerAddEnd(CLayerUI* src);
+		bool LayerAddBegin(CLayerUI* src);
+		bool LayerAddAt(CLayerUI* src, UINT nZIndex);
+		CLayerUI* GetLayer(UINT nZIndex);
 	public:
-
-		CFuncSlot_1<std::vector<CLayerUI*>> slot_SelectItems; //Fire select items function
-		CFuncSlot_1<std::map<UINT, CLayerUI*>> slot_ZItemsChange;//add z-order changed callback
-
 	protected:
 		void MoveItem(int nSrcIndex, int nDesIndex);
 		void MoveItem();
@@ -332,7 +340,6 @@ namespace DirectUI
 		bool CheckRectInvalid(RECT &rc);
 		std::vector<CLayerUI*> MakeSelectItems();
 private:
-		//std::map<UINT, CLayerUI*> mapZIC;
 		std::map<CControlUI*, void*> m_mapSel;
 		MoveItemInfo m_miInfo;
 		struct _tagCursorRes
@@ -343,7 +350,7 @@ private:
 			BOOL bDrag;
 			CPoint ptMove;
 			CPoint ptOffset;
-			_tagCursorRes():pBitmap(0),hCursor(0),bDrag(0){}
+			_tagCursorRes():pBitmap(0),hCursor(0),hBitmap(0),bDrag(0){}
 			~_tagCursorRes(){Release();}
 			void Release(){
 				if(pBitmap)

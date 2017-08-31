@@ -67,7 +67,7 @@ namespace DirectUI
 	void Inter::IInterMessage::ShareInfo(CControlUI* pControl, std::shared_ptr<_tagLayerInfo>& info)
 	{
 		if(!pControl || !info.get()) return;
-		if(_tcscmp(pControl->GetClass(), TEXT("GroupUI") ) == 0)
+		if(pControl->GetInterface(DUI_CTR_GROUPITEM))
 		{
 			CGroupUI* pGroup = (CGroupUI*)(pControl);
 			pGroup->m_spLayerInfo = info;
@@ -76,22 +76,34 @@ namespace DirectUI
 				ShareInfo(pGroup->GetItemAt(it),info);
 			}
 		}
-		else if(_tcscmp(pControl->GetClass(), TEXT("LayerUI") ) == 0)
+		else if(pControl->GetInterface(DUI_CTR_LAYERITEM))
 		{
 			CLayerUI* pLayer = (CLayerUI*)(pControl);
 			pLayer->m_spLayerInfo = info;
-			info->pLayout->AddEnd(pLayer);
 		}
 	}
 
-	void Inter::IInterMessage::CheckControl(CControlUI * pControl)
+	void Inter::IInterMessage::CheckMapControl(CControlUI * pControl)
 	{
 		if (!m_spLayerInfo.get()) return;
-		if (_tcscmp(pControl->GetClass(), TEXT("LayerUI")) == 0 || 
-			_tcscmp(pControl->GetClass(), TEXT("GroupHeaderUI")) == 0)
+		if (pControl->GetInterface(DUI_CTR_LAYERITEM) 
+			|| pControl->GetInterface(DUI_CTR_GROUPHEADER))
 		{
 			ControlPosInfo& info = m_spLayerInfo->mapControl[pControl];
 			info.rcFit = pControl->GetPos();
+		}
+	}
+
+	void Inter::IInterMessage::RemoveMapControl(CControlUI* pControl)
+	{
+		if(!m_spLayerInfo.get() || pControl == NULL) return;
+		if(pControl->GetInterface(DUI_CTR_LAYERLAYOUT) || pControl->GetInterface(DUI_CTR_GROUPITEM))
+		{
+			m_spLayerInfo->mapControl.clear();
+		}
+		else
+		{
+			m_spLayerInfo->mapControl.erase(pControl);
 		}
 	}
 
@@ -134,6 +146,39 @@ namespace DirectUI
 		}
 
 		return std::make_pair(p1,p2);
+	}
+
+	static CLayerUI* GetLayerFormContainer(CContainerUI* pCon, BOOL bTop /*top or tail*/)
+	{
+		if(!pCon) return nullptr;
+		if(pCon->GetCount() == 0) return nullptr;
+		auto index = bTop ? 0 : pCon->GetCount() - 1;
+		while(true)
+		{
+			auto pCtl = pCon->GetItemAt(index);
+			if(pCtl)
+			{
+				if(pCtl->GetInterface(DUI_CTR_LAYERITEM)) return static_cast<CLayerUI*>(pCtl);
+				else if(pCtl->GetInterface(DUI_CTR_GROUPITEM))
+				{
+					auto pRet =  GetLayerFormContainer(static_cast<CContainerUI*>(pCtl),bTop);
+					if(pRet) return pRet; //找到返回,没找到继续
+				}
+			}
+			else
+			{
+				break;
+			}
+			bTop ? index++ : index--;
+		}
+		return nullptr;
+	}
+
+	static CLayerUI* GetLayerByIndex(CContainerUI* pCon)
+	{
+		if(!pCon) return nullptr;
+		if(pCon->GetCount() == 0) return nullptr;
+		return nullptr;
 	}
 
 	template<typename Tfirst,typename Tsecond>
@@ -234,7 +279,7 @@ namespace DirectUI
 
 	CLayerUI::CLayerUI()
 		:m_bButtonDown(false),m_nZ(UINT_MAX),
-		m_bDrag(false), m_ptr(nullptr)
+		m_bDrag(false)
 	{
 	}
 
@@ -330,11 +375,39 @@ namespace DirectUI
 		return __super::Add(pControl);
 	}
 
-	void CLayerUI::SetZ(UINT z)
+	void CLayerUI::SetInnerZ(UINT z)
 	{
 		if(m_nZ == z) return;
 		m_nZ = z;
-		slot_ZChange.Active(this,m_nZ);
+		if(m_spLayerInfo.get())
+		{
+			m_spLayerInfo->mapLayers[m_nZ] = this;
+		}
+		slot_ZChange.Active(this);
+	}
+
+	UINT CLayerUI::GetZ() { return m_nZ; }
+
+	void CLayerUI::SetZ(UINT z)
+	{
+		if(m_nZ == z) return;
+		m_nZ;
+	}
+
+	LPVOID CLayerUI::GetPtr(UINT index /*= 0*/) { return m_ptr.GetAt(index); }
+
+	UINT CLayerUI::SetPtr(LPVOID ptr, UINT index/* = 0*/) 
+	{
+		if(index >= m_ptr.GetSize())
+		{
+			index = m_ptr.GetSize();
+			m_ptr.Add(ptr);
+		}
+		else
+		{
+			m_ptr.SetAt(index,ptr); 
+		}
+		return index;
 	}
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -428,35 +501,66 @@ namespace DirectUI
 	bool CGroupUI::Add(CControlUI* pControl)
 	{
 		if(pControl == NULL) return false;
-		if( _tcscmp(pControl->GetClass(), TEXT("GroupHeaderUI") ) == 0 )
+		if( pControl->GetInterface(DUI_CTR_GROUPHEADER))
 		{
-			std::unique_ptr<CGroupHeaderUI> header(static_cast<CGroupHeaderUI*>(pControl));
-			m_header = std::move(header);
-			AttachEvent(pControl,this,(EventFunc)&CGroupUI::OnChildEvent);
+			return AddAt(pControl,0);
 		}
-		else if(_tcscmp(pControl->GetClass(), TEXT("LayerUI") ) == 0)
+		else if(pControl->GetInterface(DUI_CTR_LAYERITEM))
 		{
-			CLayerUI* pLayer = (CLayerUI*)(pControl->GetInterface(DUI_CTR_LAYERITEM));
+			CLayerUI* pLayer = static_cast<CLayerUI*>(pControl);
 			pLayer->m_spLayerInfo = m_spLayerInfo;
 			AttachEvent(pControl,pLayer,(EventFunc)&CLayerUI::OnChildEvent,true);
 		}
-
+		else if(pControl->GetInterface(DUI_CTR_GROUPITEM))
+		{
+			CGroupUI* pGroup = (CGroupUI*)(pControl);
+			if(!pGroup->m_spLayerInfo.get()){
+				ShareInfo(pGroup,m_spLayerInfo);
+			}
+		}
 		return __super::Add(pControl);
+	}
+
+	bool CGroupUI::AddAt(CControlUI* pControl, int nIndex)
+	{
+		if(pControl == NULL) return false;
+		if( pControl->GetInterface(DUI_CTR_GROUPHEADER))
+		{
+			if(nIndex != 0) return false;
+			std::unique_ptr<CGroupHeaderUI> header(static_cast<CGroupHeaderUI*>(pControl));
+			m_header = std::move(header);
+			AttachEvent(pControl,this,(EventFunc)&CGroupUI::OnChildEvent); // need track childcontrol?
+		}
+		else if(nIndex == 0)
+		{
+			return false;
+		}
+		if(pControl->GetInterface(DUI_CTR_LAYERITEM))
+		{
+			CLayerUI* pLayer = (CLayerUI*)(pControl);
+			pLayer->m_spLayerInfo = m_spLayerInfo;
+			//attach layer self event
+			AttachEvent(pLayer,pLayer,(EventFunc)&CLayerUI::OnChildEvent,true);
+		}
+		else if(pControl->GetInterface(DUI_CTR_GROUPITEM))
+		{
+			CGroupUI* pGroup = (CGroupUI*)(pControl);
+			if(!pGroup->m_spLayerInfo.get()){
+				ShareInfo(pGroup,m_spLayerInfo);
+			}
+		}
+		return __super::AddAt(pControl,nIndex);
 	}
 
 	bool CGroupUI::Remove(CControlUI * pControl)
 	{
-		if (pControl == NULL) return false;
+		if (pControl == NULL || pControl == m_header.get()) return false;
 		for (int it = 0; it < m_items.GetSize(); it++)
 		{
 			if (static_cast<CControlUI*>(m_items[it]) == pControl)
 			{
+				RemoveMapControl(pControl);
 				NeedUpdate();
-				if (m_spLayerInfo.get())
-				{
-					m_spLayerInfo->mapControl.erase(pControl);
-					m_spLayerInfo->pLayout->RemoveLayer((CLayerUI*)pControl);
-				}
 				if (m_bAutoDestroy)
 				{
 					if (m_bDelayedDestroy && m_pManager)
@@ -472,12 +576,21 @@ namespace DirectUI
 
 	void CGroupUI::RemoveAll()
 	{
+		RemoveMapControl(this);
 		for( int it = 1 /*ignore GroupHeaderUI*/; m_bAutoDestroy && it < m_items.GetSize(); it++ ) {
 			if( m_bDelayedDestroy && m_pManager ) m_pManager->AddDelayedCleanup(static_cast<CControlUI*>(m_items[it]));             
 			else delete static_cast<CControlUI*>(m_items[it]);
 		}
 		m_items.Empty();
 		NeedUpdate();
+		__super::RemoveAll();
+	}
+
+	bool CGroupUI::RemoveNotDestroy(CControlUI* pControl)
+	{
+		if (pControl == m_header.get()) return false;
+		RemoveMapControl(pControl);
+		return __super::RemoveNotDestroy(pControl);
 	}
 
 	void CGroupUI::DoEvent(TEventUI& event_)
@@ -624,8 +737,10 @@ namespace DirectUI
 		int iPosY = rc.top;
 		int iPosX = rc.left;
 		int cyFixedRemaining = szRemaining.cy/*cyFixed*/;
+
 		for( int it2 = 0; it2 < m_items.GetSize(); it2++ ) {
 			CControlUI* pControl = static_cast<CControlUI*>(m_items[it2]);
+
 			if( !pControl->IsVisible() ) continue;
 			if( pControl->IsFloat() ) {
 				SetFloatPos(it2);
@@ -663,7 +778,7 @@ namespace DirectUI
 					rcCtrl.Empty();
 			}
 			pControl->SetPos(rcCtrl);
-			CheckControl(pControl);
+			CheckMapControl(pControl);
 
 			iPosY += sz.cy + m_iChildPadding + rcPadding.top + rcPadding.bottom;
 			cyNeeded += sz.cy + rcPadding.top + rcPadding.bottom;
@@ -744,6 +859,11 @@ namespace DirectUI
 				for (int it = 0; it < m_items.GetSize(); it++)
 				{
 					CControlUI* pControl = static_cast<CControlUI*>(m_items[it]);
+					if(pControl->GetInterface(DUI_CTR_LAYERITEM))
+					{
+						//为layer控件时,设置Z,并增加Z序计数
+						((CLayerUI*)pControl)->SetInnerZ(m_spLayerInfo->dwPaintIndexCur++);
+					}
 					if (!pControl->IsVisible()) continue;
 					if (!::IntersectRect(&rcTemp, &rcPaint, &pControl->GetPos())) continue;
 					if (pControl ->IsFloat()) 
@@ -763,7 +883,7 @@ namespace DirectUI
 					if(pControl->GetInterface(DUI_CTR_LAYERITEM))
 					{
 						//为layer控件时,设置Z,并增加Z序计数
-						((CLayerUI*)pControl)->SetZ(m_spLayerInfo->dwPaintIndexCur++);
+						((CLayerUI*)pControl)->SetInnerZ(m_spLayerInfo->dwPaintIndexCur++);
 					}
 					if (!pControl->IsVisible()) continue;
 					if (!::IntersectRect(&rcTemp, &rcPaint, &pControl->GetPos())) continue;
@@ -901,7 +1021,6 @@ namespace DirectUI
 				m_mapSel.clear();
 			}
 			m_mapSel[event_->pSender] = event_->pSender;
-			slot_SelectItems.Active(MakeSelectItems());
 			Invalidate();
 			break;
 		}
@@ -924,7 +1043,7 @@ namespace DirectUI
 	{
 		return m_bMultiSel;
 	}
-	
+
 	void CLayerLayoutUI::SetTrackEvent(bool bFlag)
 	{
 		m_bTrackEvents = bFlag;
@@ -1144,6 +1263,11 @@ namespace DirectUI
 				for (int it = 0; it < m_items.GetSize(); it++)
 				{
 					CControlUI* pControl = static_cast<CControlUI*>(m_items[it]);
+					if(pControl->GetInterface(DUI_CTR_LAYERITEM))
+					{
+						//为layer控件时,设置Z,并增加Z序计数
+						((CLayerUI*)pControl)->SetInnerZ(m_spLayerInfo->dwPaintIndexCur++);
+					}
 					if (!pControl->IsVisible()) continue;
 					if (!::IntersectRect(&rcTemp, &rcPaint, &pControl->GetPos())) continue;
 					if (pControl ->IsFloat()) 
@@ -1163,7 +1287,7 @@ namespace DirectUI
 					if(pControl->GetInterface(DUI_CTR_LAYERITEM))
 					{
 						//为layer控件时,设置Z,并增加Z序计数
-						((CLayerUI*)pControl)->SetZ(m_spLayerInfo->dwPaintIndexCur++);
+						((CLayerUI*)pControl)->SetInnerZ(m_spLayerInfo->dwPaintIndexCur++);
 					}
 					if (!pControl->IsVisible()) continue;
 					if (!::IntersectRect(&rcTemp, &rcPaint, &pControl->GetPos())) continue;
@@ -1196,7 +1320,13 @@ namespace DirectUI
 		}
 
 		PaintMoveItem(hDC);
-		PrintLayerZ(this);
+		//超出的layer裁剪掉
+		if(m_spLayerInfo->mapLayers.size() > m_spLayerInfo->dwPaintIndexCur)
+		{
+			m_spLayerInfo->mapLayers.erase(
+				m_spLayerInfo->mapLayers.find(m_spLayerInfo->dwPaintIndexCur-1),
+				m_spLayerInfo->mapLayers.end());
+		}
 	}
 
 	void CLayerLayoutUI::PaintBkColor(HDC hDC)
@@ -1343,7 +1473,6 @@ namespace DirectUI
 			int index = 0;
 			if(PtHitControl(event_.ptMouse,index) != NULL)
 			{
-				SelectItem(index);
 			}
 		}
 		if (event_.Type == UIEVENT_WINDOWSIZE)
@@ -1565,7 +1694,7 @@ namespace DirectUI
 
 			RECT rcCtrl = { iPosX + rcPadding.left, iPosY + rcPadding.top, iPosX + rcPadding.left + sz.cx, iPosY + sz.cy + rcPadding.top + rcPadding.bottom };
 			pControl->SetPos(rcCtrl);
-			CheckControl(pControl);
+			CheckMapControl(pControl);
 
 			iPosY += sz.cy + m_iChildPadding + rcPadding.top + rcPadding.bottom;
 			cyNeeded += sz.cy + rcPadding.top + rcPadding.bottom;
@@ -1610,7 +1739,7 @@ namespace DirectUI
 			rcPos.top -= cy;
 			rcPos.bottom -= cy;
 			pControl->SetPos(rcPos);
-			CheckControl(pControl);
+			CheckMapControl(pControl);
 		}
 
 		Invalidate();
@@ -1642,52 +1771,15 @@ namespace DirectUI
 
 	//Add,Del,Sel controls
 	//--------------------------------------------------------------------------------------------
-	
-	bool CLayerLayoutUI::SelectItem(UINT nZIndex)
-	{
-		CLayerUI* p= GetZIndexItem(nZIndex);
-		if(p)
-		{
-			m_mapSel[p] = p;
-			Invalidate();
-		}
-		return true;
-	}
 
-	bool CLayerLayoutUI::SelectExcludeItem(UINT nZIndex)
-	{
-		CLayerUI* p= GetZIndexItem(nZIndex);
-		if(p)
-		{
-			m_mapSel.erase(p);
-			Invalidate();
-		}
-		return true;
-	}
-
-	void CLayerLayoutUI::SelectAll()
-	{
-		//for(auto iter = mapZIC.begin();iter!=mapZIC.end();++iter)
-		//{
-		//	m_mapSel[iter->second] = iter->second;
-		//}
-	}
-
-	void CLayerLayoutUI::SelectNone()
-	{
-		m_mapSel.clear();
-		Invalidate();
-	}
-	
+	//--CContainerUI inherited functions----
 	bool CLayerLayoutUI::Add(CControlUI* pControl)
 	{
 		if(pControl == NULL) return false;
 		if(pControl->GetInterface(DUI_CTR_LAYERITEM))
 		{
 			CLayerUI* pLayer = (CLayerUI*)(pControl);
-			if(!pLayer->m_spLayerInfo.get()){
-				ShareInfo(pLayer,m_spLayerInfo);
-			}
+			pLayer->m_spLayerInfo = m_spLayerInfo;
 			//attach layer self event
 			AttachEvent(pLayer,pLayer,(EventFunc)&CLayerUI::OnChildEvent,true);
 		}
@@ -1701,6 +1793,26 @@ namespace DirectUI
 		return __super::Add(pControl);
 	}
 
+	bool CLayerLayoutUI::AddAt(CControlUI* pControl, int nIndex)
+	{
+		if(pControl == NULL) return false;
+		if(pControl->GetInterface(DUI_CTR_LAYERITEM))
+		{
+			CLayerUI* pLayer = (CLayerUI*)(pControl);
+			pLayer->m_spLayerInfo = m_spLayerInfo;
+			//attach layer self event
+			AttachEvent(pLayer,pLayer,(EventFunc)&CLayerUI::OnChildEvent,true);
+		}
+		else if(pControl->GetInterface(DUI_CTR_GROUPITEM))
+		{
+			CGroupUI* pGroup = (CGroupUI*)(pControl);
+			if(!pGroup->m_spLayerInfo.get()){
+				ShareInfo(pGroup,m_spLayerInfo);
+			}
+		}
+		return __super::AddAt(pControl,nIndex);
+	}
+
 	bool CLayerLayoutUI::Remove(CControlUI * pControl)
 	{
 		if (pControl == NULL) return false;
@@ -1708,10 +1820,8 @@ namespace DirectUI
 		{
 			if (static_cast<CControlUI*>(m_items[it]) == pControl)
 			{
-				if (m_spLayerInfo.get())
-				{
-					m_spLayerInfo->mapControl.erase(pControl);
-				}
+				RemoveMapControl(pControl);
+				m_mapSel.erase(pControl);
 				NeedUpdate();
 				if (m_bAutoDestroy)
 				{
@@ -1728,12 +1838,20 @@ namespace DirectUI
 
 	void CLayerLayoutUI::RemoveAll()
 	{
-		//m_mapSel.clear();
-		//m_spLayerInfo->mapControl.clear();
-		//mapZIC.clear();
+		RemoveMapControl(this);
+		m_mapSel.clear();
 		__super::RemoveAll();
 	}
 
+	bool CLayerLayoutUI::RemoveNotDestroy(CControlUI* pControl)
+	{
+		RemoveMapControl(pControl);
+		m_mapSel.erase(pControl);
+		return __super::RemoveNotDestroy(pControl);
+	}
+
+	//--CLayerLayoutUI functions----
+	
 	void CLayerLayoutUI::RemoveSelected()
 	{
 		std::map<CControlUI*, void*> mapSel = m_mapSel;
@@ -1753,110 +1871,133 @@ namespace DirectUI
 		Invalidate();
 	}
 
-	void CLayerLayoutUI::AddEnd(CLayerUI * src)
+	bool CLayerLayoutUI::RemoveLayer(CLayerUI* rmc)
 	{
-		//UINT size =(UINT)mapZIC.size()+1;
-		//mapZIC[size] = src;
-		//src->SetZ(size);
-		//std::map<UINT, CLayerUI*> mapzo;
-		//mapzo[size]= src;
-		//slot_ZItemsChange.Active(mapzo);
+		if(rmc && GetLayer(rmc->GetZ()) == rmc)
+		{
+			CContainerUI* p = GetParentLayout(rmc);
+			if(p)
+			{
+				m_mapSel.erase(rmc);
+				p->Remove(rmc);
+				Invalidate();
+				return true;
+			}
+		}
+		return false;
 	}
 
-	CLayerUI* CLayerLayoutUI::GetZIndexItem(UINT z)
+	bool CLayerLayoutUI::LayerSelect(UINT nZIndex)
 	{
-		//auto item = mapZIC.find(z);
-		//if( item != mapZIC.end())
-		//	return item->second;
+		CLayerUI* p= GetLayer(nZIndex);
+		if(p)
+		{
+			m_mapSel[p] = p;
+			Invalidate();
+			return true;
+		}
+		return false;
+	}
+
+	bool CLayerLayoutUI::LayerDeselect(UINT nZIndex)
+	{
+		CLayerUI* p= GetLayer(nZIndex);
+		if(p)
+		{
+			m_mapSel.erase(p);
+			Invalidate();
+			return true;
+		}
+		return false;
+	}
+
+	void CLayerLayoutUI::LayerSelectAll()
+	{
+		if(m_spLayerInfo.get())
+		{			
+			for(auto iter = m_spLayerInfo->mapLayers.begin();iter!=m_spLayerInfo->mapLayers.end();++iter)
+			{
+				m_mapSel[iter->second] = iter->second;
+			}
+		}
+	}
+
+	void CLayerLayoutUI::LayerSelectNone()
+	{
+		m_mapSel.clear();
+		Invalidate();
+	}
+
+	bool CLayerLayoutUI::LayerAddEnd(CLayerUI * src)
+	{
+		if(src && m_spLayerInfo.get())
+		{
+#ifdef DEBUG
+			auto pTestLayer = GetLayerFormContainer(this,FALSE);
+			assert(m_spLayerInfo->mapLayers.rbegin()->second == pTestLayer);
+#endif
+			if(m_spLayerInfo->mapLayers.size() == 0)
+			{
+				this->Add(src);
+			}
+			else
+			{
+				// may be add to group
+				auto pLayer = m_spLayerInfo->mapLayers.rbegin()->second;
+				CContainerUI* p = GetParentLayout(pLayer);
+				if(p)
+				{
+					p->Add(pLayer);
+				}
+			}
+			return true;
+		}
+		return false;
+	}
+
+	bool CLayerLayoutUI::LayerAddBegin(CLayerUI* src)
+	{
+		if(!m_spLayerInfo.get()) return false;
+#ifdef DEBUG
+		auto pLayer = GetLayerFormContainer(this,TRUE);
+		if(pLayer)
+		{
+			assert(m_spLayerInfo->mapLayers.size() && m_spLayerInfo->mapLayers.begin()->second == pLayer);
+		}
+#endif
+		return LayerAddAt(src,0);
+	}
+
+	bool CLayerLayoutUI::LayerAddAt(CLayerUI* src, UINT nZIndex)
+	{
+		if(src && m_spLayerInfo.get())
+		{
+			auto iter = m_spLayerInfo->mapLayers.find(nZIndex);
+			if(iter!=m_spLayerInfo->mapLayers.end())
+			{
+				CContainerUI* p = GetParentLayout(iter->second);
+				if(p)
+				{
+					auto index = p->GetItemIndex(iter->second);
+					p->AddAt(src,index);
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	CLayerUI* CLayerLayoutUI::GetLayer(UINT nZIndex)
+	{
+		if(m_spLayerInfo.get())
+		{			
+			auto item = m_spLayerInfo->mapLayers.find(nZIndex);
+			if( item != m_spLayerInfo->mapLayers.end())
+				return item->second;
+		}
 		return nullptr;
 	}
 
-	void CLayerLayoutUI::RemoveLayer(CLayerUI* rmc)
-	{
-		//UINT rmz = 0;
-		////auto iter = std::find_if(mapZIC.begin(), mapZIC.end(),TMapFind<UINT, CLayerUI*>(rmc));
-		//auto iter = mapZIC.find(rmc->GetZ());
-		//if(iter != mapZIC.end())
-		//{
-		//	rmz = iter->first;
-		//	if(iter->second != rmc) return;
-		//	//overwirte remove item
-		//	for(auto iter_ic2 = iter;iter_ic2!=mapZIC.end();NULL)
-		//	{
-		//		auto cur_iter = iter_ic2;
-		//		iter_ic2++;//move to next
-		//		if(iter_ic2==mapZIC.end())
-		//		{
-		//			mapZIC.erase(cur_iter);
-		//			break;
-		//		}
-		//		cur_iter->second = iter_ic2->second;
-		//		iter_ic2->second->SetZ(cur_iter->first);
-		//	}
-		//	iter = mapZIC.find(rmz);
-		//	std::map<UINT, CLayerUI*> mapzo(iter,mapZIC.end());
-		//	slot_ZItemsChange.Active(mapzo);
-		//}
-	}
-
-	//void CLayerLayoutUI::ChangeZOrder(CLayerUI * src, CLayerUI * dst, bool before)
-	//{
-	//	auto iter_src = mapZIC.find(src->GetZ());
-	//	auto iter_dst = mapZIC.find(dst->GetZ());
-	//	if(iter_src == mapZIC.end() || iter_src->second != src ||
-	//		iter_dst == mapZIC.end() || iter_dst->second != dst)
-	//		return;
-	//	if(!before)//replace next
-	//	{
-	//		iter_dst++;
-	//	}
-	//	if(src->GetZ() > dst->GetZ())
-	//	{
-	//		for(auto iter_ic2 = iter_src;iter_ic2!=iter_dst;NULL)
-	//		{
-	//			auto cur_iter = iter_ic2;
-	//			iter_ic2--;//move to pre
-	//			cur_iter->second = iter_ic2->second;
-	//			cur_iter->second->SetZ(cur_iter->first);
-	//			mapZOCache[cur_iter->first] = cur_iter->second;
-	//			if(iter_ic2==iter_dst)
-	//			{
-	//				iter_dst->second = src;
-	//				iter_dst->second->SetZ(iter_dst->first);
-	//				mapZOCache[iter_dst->first] = iter_dst->second;
-	//				break;
-	//			}
-	//		}
-	//	}
-	//	else
-	//	{
-	//		for(auto iter_ic2 = iter_src;iter_ic2!=iter_dst;NULL)
-	//		{
-	//			auto cur_iter = iter_ic2;
-	//			iter_ic2++;//move to next
-	//			if(iter_ic2==iter_dst)
-	//			{
-	//				cur_iter->second = src;
-	//				cur_iter->second->SetZ(cur_iter->first);
-	//				mapZOCache[cur_iter->first] = cur_iter->second;
-	//				break;
-	//			}
-	//			cur_iter->second = iter_ic2->second;
-	//			cur_iter->second->SetZ(cur_iter->first);
-	//			mapZOCache[cur_iter->first] = cur_iter->second;
-	//		}
-	//	}
-	//}
-
-	//void CLayerLayoutUI::LauchChangeZOrder()
-	//{
-	//	if(mapZOCache.empty()) return;
-	//	slot_ZItemsChange.Active(mapZOCache);
-	//	mapZOCache.clear();
-	//}
-
-	//internal functions
-	//--------------------------------------------------------------------------------------------
 	void CLayerLayoutUI::MoveItem(int nSrcIndex, int nDesIndex)
 	{
 		if ((nSrcIndex == nDesIndex) || (nSrcIndex<0) || (nDesIndex<0))
@@ -1877,49 +2018,72 @@ namespace DirectUI
 
 	void CLayerLayoutUI::MoveItem()
 	{
-		if(m_miInfo.dst)
+		CContainerUI* pLayout = nullptr;
+		CControlUI* pMove = nullptr;
+		auto MoveControl = [&]() -> bool
 		{
-			ASSERT(m_miInfo.gp_dst);
-			CContainerUI* pLayout = nullptr;
-			CControlUI* pMove = nullptr;
-			for(auto iter = m_mapSel.begin(); iter != m_mapSel.end(); ++iter)
+			pLayout = GetParentLayout(pMove);
+			if(pLayout)
 			{
-				pMove = iter->first;
-				pLayout = GetParentLayout(pMove);
-				if(pLayout)
+				if(pMove->GetInterface(DUI_CTR_GROUPHEADER))
 				{
-					if(iter->first->GetInterface(DUI_CTR_GROUPHEADER))
+					// pLayout is GroupUI
+					pMove = pLayout;
+					pLayout = (CGroupUI*)GetParentLayout(pMove);
+				}
+				DUI__Trace(L"Src %p, pMove %p -> to %p",m_miInfo.src, pMove,m_miInfo.dst);
+
+				int indexMove = m_miInfo.gp_dst->GetItemIndex(pMove);
+				pLayout->RemoveNotDestroy(pMove);
+				if(m_miInfo.bGroup)
+				{
+					m_miInfo.gp_dst->Add(pMove);
+				}
+				else
+				{
+					int index = m_miInfo.gp_dst->GetItemIndex(m_miInfo.dst);
+					DUI__Trace(L"index %d, dst count %d",index, m_miInfo.gp_dst->GetCount());
+
+					if(index == -1) 
 					{
-						// pLayout is GroupUI
-						pMove = pLayout;
-						pLayout = (CGroupUI*)GetParentLayout(pMove);
+						pLayout->AddAt(pMove,indexMove);//failed restone 
+						return false;
 					}
-					pLayout->RemoveNotDestroy(pMove);
-					if(m_miInfo.bGroup)
+					if(m_miInfo.bTop)
 					{
-						m_miInfo.gp_dst->Add(pMove);
-						//not support group yet
-						//ChangeZOrder((CLayerUI*)pMove,(CLayerUI*)m_miInfo.dst,false);
+						m_miInfo.gp_dst->AddAt(pMove,index);
 					}
 					else
 					{
-						int index = m_miInfo.gp_dst->GetItemIndex(m_miInfo.dst);
-						if(index == -1) continue;
-						if(m_miInfo.bTop)
-						{
-							m_miInfo.gp_dst->AddAt(pMove,index);
-							//ChangeZOrder((CLayerUI*)pMove,(CLayerUI*)m_miInfo.dst,true);//not support group yet
-						}
-						else
-						{
-							m_miInfo.gp_dst->AddAt(pMove,++index);
-							//ChangeZOrder((CLayerUI*)pMove,(CLayerUI*)m_miInfo.dst,false);//not support group yet
-						}
+						m_miInfo.gp_dst->AddAt(pMove,++index);
+					}
+				}
+			}
+			return true;
+		};
+		if(m_miInfo.dst)
+		{
+			ASSERT(m_miInfo.gp_dst);
+			
+			auto iter = m_mapSel.find(m_miInfo.src);
+			if(iter == m_mapSel.end())//unselected control move
+			{
+				pMove = m_miInfo.src;
+				MoveControl();
+			}
+			else
+			{
+				//selected control move
+				for(iter = m_mapSel.begin(); iter != m_mapSel.end(); ++iter)
+				{
+					pMove = iter->first;
+					if(!MoveControl())
+					{
+						continue;
 					}
 				}
 			}
 			m_miInfo.gp_dst->NeedUpdate();
-			//LauchChangeZOrder();
 		}
 		m_miInfo.Clear();
 	}
