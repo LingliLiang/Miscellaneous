@@ -72,7 +72,7 @@ namespace DirectUI
 		DWORD dwPaintIndexCur; //begain LayerLayout repaint set to 0,when paint a layer ,it will increment 1,an change z of layer
 
 		std::map<CControlUI*, ControlPosInfo> mapControl; //all control pos in main layout
-		std::map<UINT, CLayerUI*> mapLayers; //all layer, by index of z
+		std::vector<CLayerUI*> vecLayers; //all layer, by index of z
 
 		CLayerLayoutUI* pLayout;//main layout pointer
 
@@ -116,6 +116,14 @@ namespace DirectUI
 			void CheckMapControl(CControlUI* pControl);
 			///erase m_spLayerInfo's mapControl and it's sub-controls
 			void RemoveMapControl(CControlUI* pControl);
+			///update vecLayers by type; opt: 1 eq to Add
+			void UpdateToVecLayers(CLayerUI* pControl, int opt);
+			///get Layer item by index of Z
+			CLayerUI* GetLayer(UINT nZIndex);
+			///reupdate m_spLayerInfo's vecLayers order
+			void UpdateVecLayers();
+			///for UpdateVecLayers call,don;t use it;
+			void CheckLayers();
 		};
 
 		class CSwitch
@@ -140,6 +148,7 @@ namespace DirectUI
 	{
 		friend class CGroupUI;
 		friend class CLayerLayoutUI;
+		friend class Inter::IInterMessage;
 	public:
 		CLayerUI();
 		virtual LPCTSTR GetClass() const;
@@ -158,7 +167,7 @@ namespace DirectUI
 
 		// Event fire functions
 		CFuncSlot_1<CLayerUI*> slot_ZChange; //Fire z order changed
-		CFuncSlot_1<CLayerUI*> slot_SelectItems; //Fire select items function
+		CFuncSlot_1<CLayerUI*> slot_SelectChange; //Fire select items function
 
 	protected:
 		void SetInnerZ(UINT z);
@@ -316,10 +325,9 @@ namespace DirectUI
 		//bool RemoveAt(int nIndex);
 		void RemoveAll();
 
-		void RemoveSelected();
-		void RemoveSelectedLayer();
-		void RemoveSelectedGroup();
-		bool RemoveLayer(CLayerUI* rmc);
+		void RemoveSelected(); //inc layer and group
+		void LayerRemoveSelected();
+		bool LayerRemove(CLayerUI* rmc);
 		bool LayerSelect(UINT nZIndex);
 		bool LayerDeselect(UINT nZIndex);
 		void LayerSelectAll();
@@ -327,7 +335,6 @@ namespace DirectUI
 		bool LayerAddEnd(CLayerUI* src);
 		bool LayerAddBegin(CLayerUI* src);
 		bool LayerAddAt(CLayerUI* src, UINT nZIndex);
-		CLayerUI* GetLayer(UINT nZIndex);
 	public:
 	protected:
 		void MoveItem(int nSrcIndex, int nDesIndex);

@@ -107,6 +107,66 @@ namespace DirectUI
 		}
 	}
 
+	void Inter::IInterMessage::UpdateToVecLayers(CLayerUI* pControl, int opt)
+	{
+		if(m_spLayerInfo.get())
+		{
+			if(1 == opt) //add
+			{
+				m_spLayerInfo->vecLayers[pControl->GetZ()] = pControl;
+			}
+			else if(2 == opt) //remove
+			{
+				m_spLayerInfo->vecLayers[pControl->GetZ()] = pControl;
+			}
+			else if(3 == opt) //insert
+			{
+				m_spLayerInfo->vecLayers[pControl->GetZ()] = pControl;
+			}
+		}
+	}
+
+	CLayerUI* Inter::IInterMessage::GetLayer(UINT nZIndex)
+	{
+		if(m_spLayerInfo.get() && m_spLayerInfo->vecLayers.size() > nZIndex + 1)
+		{
+			auto item = m_spLayerInfo->vecLayers[nZIndex];
+			return item;
+		}
+		return nullptr;
+	}
+
+	void Inter::IInterMessage::CheckLayers()
+	{
+		if(!m_spLayerInfo.get()) return;
+		CContainerUI* p = reinterpret_cast<CContainerUI*>(this);
+		int size = p->GetCount();
+		int index = 0;
+		if(p->GetInterface(DUI_CTR_GROUPITEM)) index = 1;
+		for (index ;index < size;index++)
+		{
+			auto pctl = p->GetItemAt(index);
+			if (!pctl) continue;
+			auto inter = static_cast<IInterMessage*>(pctl->GetInterface(INTERFACE_INTERMSG));
+			if (inter) {
+				inter->CheckLayers();
+				continue;
+			}
+			if(pctl->GetInterface(DUI_CTR_LAYERITEM))
+			{
+				//为layer控件时,设置Z,并增加Z序计数
+				((CLayerUI*)pctl)->SetInnerZ(m_spLayerInfo->dwPaintIndexCur++);
+			}
+		}
+	}
+
+	void Inter::IInterMessage::UpdateVecLayers()
+	{
+		if(!m_spLayerInfo.get() || !m_spLayerInfo->pLayout) return;
+		m_spLayerInfo->dwPaintIndexCur = 0; // Z序计数
+		m_spLayerInfo->pLayout->CheckLayers();
+	}
+
 	static CContainerUI* GetParentLayout(CControlUI* p)
 	{
 		CControlUI* pcon = p->GetParent();
@@ -363,6 +423,7 @@ namespace DirectUI
 			if (!m_bDrag) { //isn't Draging can select
 				pEvent->pSender = this;
 				Message(pEvent, LayerItemSelect);
+				slot_SelectChange.Active(this);
 			}
 		}
 		return true;
@@ -379,10 +440,6 @@ namespace DirectUI
 	{
 		if(m_nZ == z) return;
 		m_nZ = z;
-		if(m_spLayerInfo.get())
-		{
-			m_spLayerInfo->mapLayers[m_nZ] = this;
-		}
 		slot_ZChange.Active(this);
 	}
 
@@ -835,85 +892,7 @@ namespace DirectUI
 	void CGroupUI::DoPaint(HDC hDC, const RECT& rcPaint)
 	{
 		if(!m_spLayerInfo.get()) return;
-
-		//CContainerUI::DoPaint
-		RECT rcTemp = { 0 };
-		if (!::IntersectRect(&rcTemp, &rcPaint, &m_rcItem)) return;
-
-		CRenderClip clip;
-		CRenderClip::GenerateClip(hDC, rcTemp, clip);
-		CControlUI::DoPaint(hDC, rcPaint);
-
-		if (m_items.GetSize() > 0) 
-		{
-			RECT rc = m_rcItem;
-			rc.left += m_rcInset.left;
-			rc.top += m_rcInset.top;
-			rc.right -= m_rcInset.right;
-			rc.bottom -= m_rcInset.bottom;
-			if (m_pVerticalScrollBar && m_pVerticalScrollBar->IsVisible()) rc.right -= m_pVerticalScrollBar->GetFixedWidth();
-			if (m_pHorizontalScrollBar && m_pHorizontalScrollBar->IsVisible()) rc.bottom -= m_pHorizontalScrollBar->GetFixedHeight();
-
-			if (!::IntersectRect(&rcTemp, &rcPaint, &rc)) 
-			{
-				for (int it = 0; it < m_items.GetSize(); it++)
-				{
-					CControlUI* pControl = static_cast<CControlUI*>(m_items[it]);
-					if(pControl->GetInterface(DUI_CTR_LAYERITEM))
-					{
-						//为layer控件时,设置Z,并增加Z序计数
-						((CLayerUI*)pControl)->SetInnerZ(m_spLayerInfo->dwPaintIndexCur++);
-					}
-					if (!pControl->IsVisible()) continue;
-					if (!::IntersectRect(&rcTemp, &rcPaint, &pControl->GetPos())) continue;
-					if (pControl ->IsFloat()) 
-					{
-						if (!::IntersectRect(&rcTemp, &m_rcItem, &pControl->GetPos())) continue;
-						pControl->DoPaint(hDC, rcPaint);
-					}
-				}
-			}
-			else 
-			{
-				CRenderClip childClip;
-				CRenderClip::GenerateClip(hDC, rcTemp, childClip);
-				for (int it = 0; it < m_items.GetSize(); it++) 
-				{
-					CControlUI* pControl = static_cast<CControlUI*>(m_items[it]);
-					if(pControl->GetInterface(DUI_CTR_LAYERITEM))
-					{
-						//为layer控件时,设置Z,并增加Z序计数
-						((CLayerUI*)pControl)->SetInnerZ(m_spLayerInfo->dwPaintIndexCur++);
-					}
-					if (!pControl->IsVisible()) continue;
-					if (!::IntersectRect(&rcTemp, &rcPaint, &pControl->GetPos())) continue;
-					if (pControl ->IsFloat()) 
-					{
-						if (!::IntersectRect(&rcTemp, &m_rcItem, &pControl->GetPos())) continue;
-						CRenderClip::UseOldClipBegin(hDC, childClip);
-						pControl->DoPaint(hDC, rcPaint);
-						CRenderClip::UseOldClipEnd(hDC, childClip);
-					}
-					else 
-					{
-						if (!::IntersectRect(&rcTemp, &rc, &pControl->GetPos())) continue;
-						pControl->DoPaint(hDC, rcPaint);
-					}
-				}
-			}
-		}
-
-		if (m_pVerticalScrollBar != NULL && m_pVerticalScrollBar->IsVisible()) 
-		{
-			if (::IntersectRect(&rcTemp, &rcPaint, &m_pVerticalScrollBar->GetPos()))
-				m_pVerticalScrollBar->DoPaint(hDC, rcPaint);
-		}
-
-		if (m_pHorizontalScrollBar != NULL && m_pHorizontalScrollBar->IsVisible()) 
-		{
-			if(::IntersectRect(&rcTemp, &rcPaint, &m_pHorizontalScrollBar->GetPos()))
-				m_pHorizontalScrollBar->DoPaint(hDC, rcPaint);
-		}
+		CContainerUI::DoPaint(hDC,rcPaint);
 	}
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1237,96 +1216,8 @@ namespace DirectUI
 	//--------------------------------------------------------------------------------------------
 	void CLayerLayoutUI::DoPaint(HDC hDC, const RECT& rcPaint)
 	{
-		if(!m_spLayerInfo.get()) return;
-		m_spLayerInfo->dwPaintIndexCur = 0; // Z序计数
-
-		//CContainerUI::DoPaint
-		RECT rcTemp = { 0 };
-		if (!::IntersectRect(&rcTemp, &rcPaint, &m_rcItem)) return;
-
-		CRenderClip clip;
-		CRenderClip::GenerateClip(hDC, rcTemp, clip);
-		CControlUI::DoPaint(hDC, rcPaint);
-
-		if (m_items.GetSize() > 0) 
-		{
-			RECT rc = m_rcItem;
-			rc.left += m_rcInset.left;
-			rc.top += m_rcInset.top;
-			rc.right -= m_rcInset.right;
-			rc.bottom -= m_rcInset.bottom;
-			if (m_pVerticalScrollBar && m_pVerticalScrollBar->IsVisible()) rc.right -= m_pVerticalScrollBar->GetFixedWidth();
-			if (m_pHorizontalScrollBar && m_pHorizontalScrollBar->IsVisible()) rc.bottom -= m_pHorizontalScrollBar->GetFixedHeight();
-
-			if (!::IntersectRect(&rcTemp, &rcPaint, &rc)) 
-			{
-				for (int it = 0; it < m_items.GetSize(); it++)
-				{
-					CControlUI* pControl = static_cast<CControlUI*>(m_items[it]);
-					if(pControl->GetInterface(DUI_CTR_LAYERITEM))
-					{
-						//为layer控件时,设置Z,并增加Z序计数
-						((CLayerUI*)pControl)->SetInnerZ(m_spLayerInfo->dwPaintIndexCur++);
-					}
-					if (!pControl->IsVisible()) continue;
-					if (!::IntersectRect(&rcTemp, &rcPaint, &pControl->GetPos())) continue;
-					if (pControl ->IsFloat()) 
-					{
-						if (!::IntersectRect(&rcTemp, &m_rcItem, &pControl->GetPos())) continue;
-						pControl->DoPaint(hDC, rcPaint);
-					}
-				}
-			}
-			else 
-			{
-				CRenderClip childClip;
-				CRenderClip::GenerateClip(hDC, rcTemp, childClip);
-				for (int it = 0; it < m_items.GetSize(); it++) 
-				{
-					CControlUI* pControl = static_cast<CControlUI*>(m_items[it]);
-					if(pControl->GetInterface(DUI_CTR_LAYERITEM))
-					{
-						//为layer控件时,设置Z,并增加Z序计数
-						((CLayerUI*)pControl)->SetInnerZ(m_spLayerInfo->dwPaintIndexCur++);
-					}
-					if (!pControl->IsVisible()) continue;
-					if (!::IntersectRect(&rcTemp, &rcPaint, &pControl->GetPos())) continue;
-					if (pControl ->IsFloat()) 
-					{
-						if (!::IntersectRect(&rcTemp, &m_rcItem, &pControl->GetPos())) continue;
-						CRenderClip::UseOldClipBegin(hDC, childClip);
-						pControl->DoPaint(hDC, rcPaint);
-						CRenderClip::UseOldClipEnd(hDC, childClip);
-					}
-					else 
-					{
-						if (!::IntersectRect(&rcTemp, &rc, &pControl->GetPos())) continue;
-						pControl->DoPaint(hDC, rcPaint);
-					}
-				}
-			}
-		}
-
-		if (m_pVerticalScrollBar != NULL && m_pVerticalScrollBar->IsVisible()) 
-		{
-			if (::IntersectRect(&rcTemp, &rcPaint, &m_pVerticalScrollBar->GetPos()))
-				m_pVerticalScrollBar->DoPaint(hDC, rcPaint);
-		}
-
-		if (m_pHorizontalScrollBar != NULL && m_pHorizontalScrollBar->IsVisible()) 
-		{
-			if(::IntersectRect(&rcTemp, &rcPaint, &m_pHorizontalScrollBar->GetPos()))
-				m_pHorizontalScrollBar->DoPaint(hDC, rcPaint);
-		}
-
+		CContainerUI::DoPaint(hDC,rcPaint);
 		PaintMoveItem(hDC);
-		//超出的layer裁剪掉
-		if(m_spLayerInfo->mapLayers.size() > m_spLayerInfo->dwPaintIndexCur)
-		{
-			m_spLayerInfo->mapLayers.erase(
-				m_spLayerInfo->mapLayers.find(m_spLayerInfo->dwPaintIndexCur-1),
-				m_spLayerInfo->mapLayers.end());
-		}
 	}
 
 	void CLayerLayoutUI::PaintBkColor(HDC hDC)
@@ -1852,7 +1743,7 @@ namespace DirectUI
 
 	//--CLayerLayoutUI functions----
 	
-	void CLayerLayoutUI::RemoveSelected()
+	void CLayerLayoutUI::LayerRemoveSelected()
 	{
 		std::map<CControlUI*, void*> mapSel = m_mapSel;
 		for(auto iter = mapSel.begin();iter!=mapSel.end();++iter)
@@ -1871,7 +1762,7 @@ namespace DirectUI
 		Invalidate();
 	}
 
-	bool CLayerLayoutUI::RemoveLayer(CLayerUI* rmc)
+	bool CLayerLayoutUI::LayerRemove(CLayerUI* rmc)
 	{
 		if(rmc && GetLayer(rmc->GetZ()) == rmc)
 		{
@@ -1915,9 +1806,9 @@ namespace DirectUI
 	{
 		if(m_spLayerInfo.get())
 		{			
-			for(auto iter = m_spLayerInfo->mapLayers.begin();iter!=m_spLayerInfo->mapLayers.end();++iter)
+			for(auto iter = m_spLayerInfo->vecLayers.begin();iter!=m_spLayerInfo->vecLayers.end();++iter)
 			{
-				m_mapSel[iter->second] = iter->second;
+				m_mapSel[*iter] = *iter;
 			}
 		}
 	}
@@ -1934,23 +1825,22 @@ namespace DirectUI
 		{
 #ifdef DEBUG
 			auto pTestLayer = GetLayerFormContainer(this,FALSE);
-			assert(m_spLayerInfo->mapLayers.rbegin()->second == pTestLayer);
+			assert((*m_spLayerInfo->vecLayers.rbegin()) == pTestLayer);
 #endif
-			if(m_spLayerInfo->mapLayers.size() == 0)
+			if(m_spLayerInfo->vecLayers.size() == 0)
 			{
-				this->Add(src);
+				return this->Add(src);
 			}
 			else
 			{
 				// may be add to group
-				auto pLayer = m_spLayerInfo->mapLayers.rbegin()->second;
+				auto pLayer = *m_spLayerInfo->vecLayers.rbegin();
 				CContainerUI* p = GetParentLayout(pLayer);
 				if(p)
 				{
-					p->Add(pLayer);
+					return p->Add(pLayer);
 				}
 			}
-			return true;
 		}
 		return false;
 	}
@@ -1962,7 +1852,7 @@ namespace DirectUI
 		auto pLayer = GetLayerFormContainer(this,TRUE);
 		if(pLayer)
 		{
-			assert(m_spLayerInfo->mapLayers.size() && m_spLayerInfo->mapLayers.begin()->second == pLayer);
+			assert(m_spLayerInfo->vecLayers.size() && *m_spLayerInfo->vecLayers.begin() == pLayer);
 		}
 #endif
 		return LayerAddAt(src,0);
@@ -1972,30 +1862,22 @@ namespace DirectUI
 	{
 		if(src && m_spLayerInfo.get())
 		{
-			auto iter = m_spLayerInfo->mapLayers.find(nZIndex);
-			if(iter!=m_spLayerInfo->mapLayers.end())
+			if(m_spLayerInfo->vecLayers.size() == 0)
 			{
-				CContainerUI* p = GetParentLayout(iter->second);
+				return this->Add(src);
+			}
+			else
+			{
+				auto pDst = GetLayer(nZIndex);
+				CContainerUI* p = GetParentLayout(pDst);
 				if(p)
 				{
-					auto index = p->GetItemIndex(iter->second);
-					p->AddAt(src,index);
-					return true;
+					auto index = p->GetItemIndex(pDst);
+					return p->AddAt(src,index);
 				}
 			}
 		}
 		return false;
-	}
-
-	CLayerUI* CLayerLayoutUI::GetLayer(UINT nZIndex)
-	{
-		if(m_spLayerInfo.get())
-		{			
-			auto item = m_spLayerInfo->mapLayers.find(nZIndex);
-			if( item != m_spLayerInfo->mapLayers.end())
-				return item->second;
-		}
-		return nullptr;
 	}
 
 	void CLayerLayoutUI::MoveItem(int nSrcIndex, int nDesIndex)
