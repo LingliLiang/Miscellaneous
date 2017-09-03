@@ -67,9 +67,9 @@ namespace DirectUI
 		CString sItemHotImage;
 		CString sItemSelectedImage;
 
-		BOOL bLayerInit; //track main layer init finish;
+		//BOOL bLayerInit; //track main layer init finish;
 		/** using painting method to notify z order changed**/
-		DWORD dwPaintIndexCur; //begain LayerLayout repaint set to 0,when paint a layer ,it will increment 1,an change z of layer
+		//DWORD dwPaintIndexCur; //begain LayerLayout repaint set to 0,when paint a layer ,it will increment 1,an change z of layer
 
 		std::map<CControlUI*, ControlPosInfo> mapControl; //all control pos in main layout
 		std::vector<CLayerUI*> vecLayers; //all layer, by index of z
@@ -94,6 +94,14 @@ namespace DirectUI
 			LayerItemDrop
 		};
 
+		enum LayerOpt
+		{
+			LO_Add = 1,
+			LO_AddAt,
+			LO_Remove,
+			LO_Clear
+		};
+
 		class IInterMessage
 		{
 
@@ -116,13 +124,13 @@ namespace DirectUI
 			void CheckMapControl(CControlUI* pControl);
 			///erase m_spLayerInfo's mapControl and it's sub-controls
 			void RemoveMapControl(CControlUI* pControl);
-			///update vecLayers by type; opt: 1 eq to Add
-			void UpdateToVecLayers(CLayerUI* pControl, int opt);
 			///get Layer item by index of Z
 			CLayerUI* GetLayer(UINT nZIndex);
+			///update vecLayers by type; opt: enum LayerOpt
+			void UpdateToVecLayers(CControlUI* pControl, int opt, UINT placement = 0);
 			///reupdate m_spLayerInfo's vecLayers order
 			void UpdateVecLayers();
-			///for UpdateVecLayers call,don;t use it;
+			///for UpdateVecLayers call,don't use it;
 			void CheckLayers();
 		};
 
@@ -336,6 +344,8 @@ namespace DirectUI
 		bool LayerAddBegin(CLayerUI* src);
 		bool LayerAddAt(CLayerUI* src, UINT nZIndex);
 	public:
+		virtual void Init();
+
 	protected:
 		void MoveItem(int nSrcIndex, int nDesIndex);
 		void MoveItem();
@@ -380,6 +390,7 @@ private:
 		bool m_bEnsureVisible; //选中的时候是否移动位置
 
 		bool m_bForbidPaint; // 不绘制
+		bool m_bRmSel; //
 	};
 
 

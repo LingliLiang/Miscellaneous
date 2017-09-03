@@ -44,6 +44,122 @@ namespace DirectUI
 		}
 	}
 
+	static CContainerUI* GetParentLayout(CControlUI* p)
+	{
+		if(!p) return nullptr;
+		CControlUI* pcon = p->GetParent();
+		if (pcon)  return(CContainerUI*)(pcon->GetInterface(DUI_CTR_CONTAINER));
+		return nullptr;
+	}
+
+	static std::pair<CControlUI *, CControlUI *> GetNeighbor(CControlUI* p)
+	{
+		CControlUI* p1 = nullptr;
+		CControlUI* p2 = nullptr;
+		CGroupUI* pGroup = nullptr;
+		CContainerUI* pLayout = GetParentLayout(p);
+		int index = pLayout->GetItemIndex(p);
+		int size = pLayout->GetCount() - 1;
+		if (pLayout)
+		{
+			//neighbor top
+			if (index > 0) {
+				p1 = pLayout->GetItemAt(index - 1);
+				pGroup = (CGroupUI*)(p1->GetInterface(DUI_CTR_GROUPITEM));
+				if (pGroup)
+				{
+					p1 = pGroup->GetHeaderUI();
+				}
+			}
+			//neighbor bottom
+			if (index < size)
+			{
+				p2 = pLayout->GetItemAt(index + 1);
+				pGroup = (CGroupUI*)(p2->GetInterface(DUI_CTR_GROUPITEM));
+				if (pGroup)
+				{
+					p2 = pGroup->GetHeaderUI();
+				}
+			}
+		}
+
+		return std::make_pair(p1, p2);
+	}
+
+	static CLayerUI* GetLayerFormContainer(CContainerUI* pCon, BOOL bTop /*top or tail*/)
+	{
+		if (!pCon) return nullptr;
+		if (pCon->GetCount() == 0) return nullptr;
+		auto index = bTop ? 0 : pCon->GetCount() - 1;
+		while (true)
+		{
+			auto pCtl = pCon->GetItemAt(index);
+			if (pCtl)
+			{
+				if (pCtl->GetInterface(DUI_CTR_LAYERITEM)) return static_cast<CLayerUI*>(pCtl);
+				else if (pCtl->GetInterface(DUI_CTR_GROUPITEM))
+				{
+					auto pRet = GetLayerFormContainer(static_cast<CContainerUI*>(pCtl), bTop);
+					if (pRet) return pRet; //找到返回,没找到继续
+				}
+			}
+			else
+			{
+				break;
+			}
+			bTop ? index++ : index--;
+		}
+		return nullptr;
+	}
+
+	static CLayerUI* GetNeighborLayer(CControlUI* p, BOOL bTop /*top or tail*/)
+	{
+		CContainerUI* pCon = GetParentLayout(p);
+		if (!pCon) return nullptr;
+		if (pCon->GetCount() == 0) return nullptr;
+		auto indexItem = pCon->GetItemIndex(p);
+		auto index = bTop ? indexItem - 1 : indexItem + 1;
+		while (true)
+		{
+			auto pCtl = pCon->GetItemAt(index);
+			if (pCtl)
+			{
+				if (pCtl->GetInterface(DUI_CTR_LAYERITEM)) return static_cast<CLayerUI*>(pCtl);
+				else if (pCtl->GetInterface(DUI_CTR_GROUPITEM))
+				{
+					auto pRet = GetLayerFormContainer(dynamic_cast<CContainerUI*>(pCtl), FALSE);
+					if (pRet) return pRet; //找到返回,没找到继续
+				}
+			}
+			else
+			{
+				break;
+			}
+			bTop ? index-- : index++;
+		}
+		return nullptr;
+	}
+
+	static void MakeLayers(CGroupUI* pGroup, std::vector<CLayerUI*>& layers)
+	{
+		if (!pGroup) return;
+		int size = pGroup->GetCount();
+		int index = 1;
+		for (index;index < size;index++)
+		{
+			auto pctl = pGroup->GetItemAt(index);
+			if (!pctl) continue;
+			if (pctl->GetInterface(DUI_CTR_LAYERITEM))
+			{
+				layers.push_back((CLayerUI*)pctl);
+			}
+			else if (pctl->GetInterface(DUI_CTR_GROUPITEM))
+			{
+				MakeLayers((CGroupUI*)pctl,layers);
+			}
+		}
+	}
+
 	void Inter::IInterMessage::AttachEvent(CControlUI* pControl, IInterMessage* pthis, EventFunc pfunc, bool self )
 	{
 		if (pControl == NULL) return;
@@ -107,21 +223,118 @@ namespace DirectUI
 		}
 	}
 
-	void Inter::IInterMessage::UpdateToVecLayers(CLayerUI* pControl, int opt)
+	void Inter::IInterMessage::UpdateToVecLayers(CControlUI* pControl, int opt, UINT placement)
 	{
-		if(m_spLayerInfo.get())
+		//check pControl had Manager
+		if(m_spLayerInfo.get() && pControl->GetManager())
 		{
-			if(1 == opt) //add
+			UINT nBegin = 0,nEnd = UINT_MAX;
+			auto pLayer = (CLayerUI*)nullptr;
+			auto &vecLayers = m_spLayerInfo->vecLayers;
+			if (LO_Add == opt || LO_AddAt == opt) //add
 			{
-				m_spLayerInfo->vecLayers[pControl->GetZ()] = pControl;
+				pLayer = GetNeighborLayer(pControl, TRUE);
+				if (pLayer)
+				{
+					nBegin = pLayer->GetZ();
+					if (pControl->GetInterface(DUI_CTR_LAYERITEM))
+					{
+						if (nBegin == vecLayers.size() - 1)
+						{
+							vecLayers.push_back((CLayerUI*)pControl);
+							nBegin = nBegin + 1;
+							nEnd = vecLayers.size() - 1;
+						}
+						else if (nBegin < vecLayers.size())
+						{
+							vecLayers.insert(vecLayers.begin() + nBegin + 1, (CLayerUI*)pControl);
+							nBegin = nBegin + 1;
+							nEnd = vecLayers.size() - 1;
+						}
+					}
+					else if (pControl->GetInterface(DUI_CTR_GROUPITEM))
+					{
+						std::vector<CLayerUI*> layers;
+						MakeLayers((CGroupUI*)pControl, layers);
+						if (layers.size())
+						{
+							vecLayers.insert(vecLayers.begin() + nBegin + 1,
+								layers.begin(), layers.end());
+							nBegin = nBegin + 1;
+							nEnd = vecLayers.size() - 1;
+						}
+					}
+				}
+				else //add to first
+				{
+					if (pControl->GetInterface(DUI_CTR_LAYERITEM))
+					{
+						vecLayers.insert(vecLayers.begin(), (CLayerUI*)pControl);
+						nEnd = vecLayers.size() - 1;
+					}
+					else if (pControl->GetInterface(DUI_CTR_GROUPITEM))
+					{
+						std::vector<CLayerUI*> layers;
+						MakeLayers((CGroupUI*)pControl, layers);
+						if (layers.size())
+						{
+							vecLayers.insert(vecLayers.begin(),layers.begin(), layers.end());
+							nEnd = vecLayers.size() - 1;
+						}
+					}
+				}
+
 			}
-			else if(2 == opt) //remove
+			else if(LO_Remove == opt) //insert
 			{
-				m_spLayerInfo->vecLayers[pControl->GetZ()] = pControl;
+				if (pControl->GetInterface(DUI_CTR_LAYERITEM))
+				{
+					pLayer = ((CLayerUI*)pControl);
+					nBegin = pLayer->GetZ();
+					if (nBegin < vecLayers.size())
+					{
+						vecLayers.erase(vecLayers.begin() + nBegin);
+						nEnd = vecLayers.size() - 1;
+					}
+				}
+				else if (pControl->GetInterface(DUI_CTR_GROUPITEM))
+				{
+					pLayer = GetLayerFormContainer((CGroupUI*)pControl,TRUE);
+					if (pLayer)
+					{
+						nBegin = pLayer->GetZ();
+						pLayer = GetLayerFormContainer((CGroupUI*)pControl, FALSE);
+						if (pLayer)
+						{
+							nEnd = pLayer->GetZ();
+							if (nEnd < vecLayers.size())
+							{
+								if (nEnd == nBegin)
+									vecLayers.erase(vecLayers.begin() + nBegin);
+								else
+									vecLayers.erase(vecLayers.begin() + nBegin, vecLayers.begin() + nEnd);
+								nEnd = vecLayers.size() - 1;
+							}
+							else
+							{
+								nEnd = UINT_MAX;
+							}
+						}
+					}
+				}
 			}
-			else if(3 == opt) //insert
+			else if (LO_Clear == opt) //clear
 			{
-				m_spLayerInfo->vecLayers[pControl->GetZ()] = pControl;
+				vecLayers.clear();
+			}
+
+			//update z order
+			if (nEnd < vecLayers.size())
+			{
+				for (auto i = nBegin; i <= nEnd; ++i)
+				{
+					vecLayers[i]->SetInnerZ(i);
+				}
 			}
 		}
 	}
@@ -139,7 +352,7 @@ namespace DirectUI
 	void Inter::IInterMessage::CheckLayers()
 	{
 		if(!m_spLayerInfo.get()) return;
-		CContainerUI* p = reinterpret_cast<CContainerUI*>(this);
+		CContainerUI* p = dynamic_cast<CContainerUI*>(this);
 		int size = p->GetCount();
 		int index = 0;
 		if(p->GetInterface(DUI_CTR_GROUPITEM)) index = 1;
@@ -155,7 +368,8 @@ namespace DirectUI
 			if(pctl->GetInterface(DUI_CTR_LAYERITEM))
 			{
 				//为layer控件时,设置Z,并增加Z序计数
-				((CLayerUI*)pctl)->SetInnerZ(m_spLayerInfo->dwPaintIndexCur++);
+				((CLayerUI*)pctl)->SetInnerZ(m_spLayerInfo->vecLayers.size());
+				m_spLayerInfo->vecLayers.push_back((CLayerUI*)pctl);
 			}
 		}
 	}
@@ -163,82 +377,8 @@ namespace DirectUI
 	void Inter::IInterMessage::UpdateVecLayers()
 	{
 		if(!m_spLayerInfo.get() || !m_spLayerInfo->pLayout) return;
-		m_spLayerInfo->dwPaintIndexCur = 0; // Z序计数
+		m_spLayerInfo->vecLayers.clear();
 		m_spLayerInfo->pLayout->CheckLayers();
-	}
-
-	static CContainerUI* GetParentLayout(CControlUI* p)
-	{
-		CControlUI* pcon = p->GetParent();
-		if(pcon)  return(CContainerUI*)(pcon->GetInterface(DUI_CTR_CONTAINER));
-		return nullptr;
-	}
-
-	static std::pair<CControlUI *,CControlUI *> GetNeighbor(CControlUI* p)
-	{
-		CControlUI* p1 = nullptr;
-		CControlUI* p2 = nullptr;
-		CGroupUI* pGroup = nullptr;
-		CContainerUI* pLayout = GetParentLayout(p);
-		int index = pLayout->GetItemIndex(p);
-		int size = pLayout->GetCount() -1;
-		if(pLayout)
-		{
-			//neighbor top
-			if(index > 0){
-				p1 = pLayout->GetItemAt(index - 1);
-				pGroup = (CGroupUI*)(p1->GetInterface(DUI_CTR_GROUPITEM));
-				if(pGroup)
-				{
-					p1 = pGroup->GetHeaderUI();
-				}
-			}
-			//neighbor bottom
-			if(index < size)
-			{
-				p2 = pLayout->GetItemAt(index + 1);
-				pGroup = (CGroupUI*)(p2->GetInterface(DUI_CTR_GROUPITEM));
-				if(pGroup)
-				{
-					p2 = pGroup->GetHeaderUI();
-				}
-			}
-		}
-
-		return std::make_pair(p1,p2);
-	}
-
-	static CLayerUI* GetLayerFormContainer(CContainerUI* pCon, BOOL bTop /*top or tail*/)
-	{
-		if(!pCon) return nullptr;
-		if(pCon->GetCount() == 0) return nullptr;
-		auto index = bTop ? 0 : pCon->GetCount() - 1;
-		while(true)
-		{
-			auto pCtl = pCon->GetItemAt(index);
-			if(pCtl)
-			{
-				if(pCtl->GetInterface(DUI_CTR_LAYERITEM)) return static_cast<CLayerUI*>(pCtl);
-				else if(pCtl->GetInterface(DUI_CTR_GROUPITEM))
-				{
-					auto pRet =  GetLayerFormContainer(static_cast<CContainerUI*>(pCtl),bTop);
-					if(pRet) return pRet; //找到返回,没找到继续
-				}
-			}
-			else
-			{
-				break;
-			}
-			bTop ? index++ : index--;
-		}
-		return nullptr;
-	}
-
-	static CLayerUI* GetLayerByIndex(CContainerUI* pCon)
-	{
-		if(!pCon) return nullptr;
-		if(pCon->GetCount() == 0) return nullptr;
-		return nullptr;
 	}
 
 	template<typename Tfirst,typename Tsecond>
@@ -440,7 +580,7 @@ namespace DirectUI
 	{
 		if(m_nZ == z) return;
 		m_nZ = z;
-		slot_ZChange.Active(this);
+		if(UINT_MAX != m_nZ) slot_ZChange.Active(this);
 	}
 
 	UINT CLayerUI::GetZ() { return m_nZ; }
@@ -575,7 +715,9 @@ namespace DirectUI
 				ShareInfo(pGroup,m_spLayerInfo);
 			}
 		}
-		return __super::Add(pControl);
+		auto ret = __super::Add(pControl);
+		if(ret) UpdateToVecLayers(pControl, LayerOpt::LO_Add);
+		return ret;
 	}
 
 	bool CGroupUI::AddAt(CControlUI* pControl, int nIndex)
@@ -606,7 +748,9 @@ namespace DirectUI
 				ShareInfo(pGroup,m_spLayerInfo);
 			}
 		}
-		return __super::AddAt(pControl,nIndex);
+		auto ret = __super::AddAt(pControl, nIndex);
+		if(ret && nIndex != 0) UpdateToVecLayers(pControl, LayerOpt::LO_AddAt, nIndex);
+		return ret;
 	}
 
 	bool CGroupUI::Remove(CControlUI * pControl)
@@ -618,6 +762,7 @@ namespace DirectUI
 			{
 				RemoveMapControl(pControl);
 				NeedUpdate();
+				UpdateToVecLayers(pControl, LayerOpt::LO_Remove);
 				if (m_bAutoDestroy)
 				{
 					if (m_bDelayedDestroy && m_pManager)
@@ -633,6 +778,7 @@ namespace DirectUI
 
 	void CGroupUI::RemoveAll()
 	{
+		UpdateToVecLayers(this, LayerOpt::LO_Remove);
 		RemoveMapControl(this);
 		for( int it = 1 /*ignore GroupHeaderUI*/; m_bAutoDestroy && it < m_items.GetSize(); it++ ) {
 			if( m_bDelayedDestroy && m_pManager ) m_pManager->AddDelayedCleanup(static_cast<CControlUI*>(m_items[it]));             
@@ -640,14 +786,15 @@ namespace DirectUI
 		}
 		m_items.Empty();
 		NeedUpdate();
-		__super::RemoveAll();
 	}
 
 	bool CGroupUI::RemoveNotDestroy(CControlUI* pControl)
 	{
 		if (pControl == m_header.get()) return false;
 		RemoveMapControl(pControl);
-		return __super::RemoveNotDestroy(pControl);
+		auto ret = __super::RemoveNotDestroy(pControl);
+		if (ret) UpdateToVecLayers(pControl, LayerOpt::LO_Remove);
+		return ret;
 	}
 
 	void CGroupUI::DoEvent(TEventUI& event_)
@@ -927,7 +1074,7 @@ namespace DirectUI
 	//CLayerLayoutUI
 
 	CLayerLayoutUI::CLayerLayoutUI() :
-	m_bMultiSel(false),m_pHotControl(NULL),m_bTrackEvents(true)
+	m_bMultiSel(false),m_pHotControl(NULL),m_bTrackEvents(true), m_bRmSel(true)
 	{
 		m_spLayerInfo = std::make_shared<_tagLayerInfo>();
 		m_spLayerInfo->pLayout = this;
@@ -946,6 +1093,12 @@ namespace DirectUI
 		if( _tcscmp(pstrName, DUI_CTR_LAYERLAYOUT) == 0 ) return static_cast<CLayerLayoutUI*>(this);
 		if( _tcscmp(pstrName, INTERFACE_INTERMSG) == 0 ) return static_cast<IInterMessage*>(this);
 		return CContainerUI::GetInterface(pstrName);
+	}
+
+	void CLayerLayoutUI::Init()
+	{
+		UpdateVecLayers();
+		__super::Init();
 	}
 
 	void CLayerLayoutUI::Message(TEventUI* event_, InterNotifyMsg what)
@@ -1681,7 +1834,9 @@ namespace DirectUI
 				ShareInfo(pGroup,m_spLayerInfo);
 			}
 		}
-		return __super::Add(pControl);
+		auto ret = __super::Add(pControl);
+		if(ret) UpdateToVecLayers(pControl, LayerOpt::LO_Add);
+		return ret;
 	}
 
 	bool CLayerLayoutUI::AddAt(CControlUI* pControl, int nIndex)
@@ -1701,7 +1856,9 @@ namespace DirectUI
 				ShareInfo(pGroup,m_spLayerInfo);
 			}
 		}
-		return __super::AddAt(pControl,nIndex);
+		auto ret = __super::AddAt(pControl, nIndex);
+		if (ret) UpdateToVecLayers(pControl, LayerOpt::LO_AddAt,nIndex);
+		return ret;
 	}
 
 	bool CLayerLayoutUI::Remove(CControlUI * pControl)
@@ -1713,6 +1870,7 @@ namespace DirectUI
 			{
 				RemoveMapControl(pControl);
 				m_mapSel.erase(pControl);
+				UpdateToVecLayers(pControl, LayerOpt::LO_Remove);
 				NeedUpdate();
 				if (m_bAutoDestroy)
 				{
@@ -1731,14 +1889,17 @@ namespace DirectUI
 	{
 		RemoveMapControl(this);
 		m_mapSel.clear();
+		UpdateToVecLayers(nullptr, LayerOpt::LO_Clear);
 		__super::RemoveAll();
 	}
 
 	bool CLayerLayoutUI::RemoveNotDestroy(CControlUI* pControl)
 	{
 		RemoveMapControl(pControl);
-		m_mapSel.erase(pControl);
-		return __super::RemoveNotDestroy(pControl);
+		if(m_bRmSel) m_mapSel.erase(pControl);
+		auto ret = __super::RemoveNotDestroy(pControl);
+		if(ret) UpdateToVecLayers(pControl, LayerOpt::LO_Remove);
+		return ret;
 	}
 
 	//--CLayerLayoutUI functions----
@@ -1916,7 +2077,16 @@ namespace DirectUI
 				DUI__Trace(L"Src %p, pMove %p -> to %p",m_miInfo.src, pMove,m_miInfo.dst);
 
 				int indexMove = m_miInfo.gp_dst->GetItemIndex(pMove);
-				pLayout->RemoveNotDestroy(pMove);
+				if (pLayout->GetInterface(DUI_CTR_LAYERLAYOUT))
+				{
+					((CLayerLayoutUI*)pLayout)->RemoveNotDestroy(pMove);
+				}
+				else if (pLayout->GetInterface(DUI_CTR_GROUPITEM))
+				{
+					((CGroupUI*)pLayout)->RemoveNotDestroy(pMove);
+				}
+				else
+					pLayout->RemoveNotDestroy(pMove);
 				if(m_miInfo.bGroup)
 				{
 					m_miInfo.gp_dst->Add(pMove);
@@ -1945,6 +2115,7 @@ namespace DirectUI
 		};
 		if(m_miInfo.dst)
 		{
+			CSwitch sw(m_bRmSel);
 			ASSERT(m_miInfo.gp_dst);
 			
 			auto iter = m_mapSel.find(m_miInfo.src);
@@ -1968,6 +2139,7 @@ namespace DirectUI
 			m_miInfo.gp_dst->NeedUpdate();
 		}
 		m_miInfo.Clear();
+		PrintLayerZ(this);
 	}
 
 	CControlUI* CLayerLayoutUI::PtHitControl(POINT ptMouse, int &nIndex)
