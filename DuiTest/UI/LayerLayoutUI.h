@@ -79,7 +79,7 @@ namespace DirectUI
 		_tagLayerInfo()
 			:rcLayerInset(10,0,0,0),rcDragTest(0,0,4,4),nLayerHeight(30),nGroupHeaderHeight(30),
 			dwItemMoveColor(0xFFffae00),dwItemHotBkColor(0xFF6B9299),
-			dwItemSelectedBkColor(0xFF258C9C),pLayout(0)
+			dwItemSelectedBkColor(0xFF258C9C),pLayout(nullptr)
 		{}
 	} LayerInfo;
 
@@ -91,7 +91,8 @@ namespace DirectUI
 			LayerItemSelect,
 			LayerItemDrag,
 			LayerItemMove,
-			LayerItemDrop
+			LayerItemDrop,
+			LayerItemZ
 		};
 
 		enum LayerOpt
@@ -117,7 +118,8 @@ namespace DirectUI
 			//info of layer
 			std::shared_ptr<_tagLayerInfo> m_spLayerInfo;
 			//track all controls event
-			void AttachEvent(CControlUI* pControl, IInterMessage* pthis, EventFunc pfunc, bool self = false);
+			template<typename O, typename Fn>
+			void AttachEvent(CControlUI* pControl, O* pthis, Fn pfunc);
 			//share m_spLayerInfo to all relative controls
 			void ShareInfo(CControlUI* pControl, std::shared_ptr<_tagLayerInfo>& info);
 			///updata controls rect to m_spLayerInfo's mapControl
@@ -162,6 +164,7 @@ namespace DirectUI
 		virtual LPCTSTR GetClass() const;
 		virtual LPVOID GetInterface(LPCTSTR pstrName);
 		virtual UINT GetControlFlags() const;
+		virtual void Init();
 
 		bool Add(CControlUI* pControl);
 
@@ -171,11 +174,7 @@ namespace DirectUI
 		LPVOID GetPtr(UINT index = 0); // get storage of user information by index
 		UINT SetPtr(LPVOID ptr, UINT index = 0); //return valid index
 		UINT GetZ();
-		void SetZ(UINT z); //Note ,it will change layer position in LayerLayout
-
-		// Event fire functions
-		CFuncSlot_1<CLayerUI*> slot_ZChange; //Fire z order changed
-		CFuncSlot_1<CLayerUI*> slot_SelectChange; //Fire select items function
+		//void SetZ(UINT z); //Note ,it will change layer position in LayerLayout
 
 	protected:
 		void SetInnerZ(UINT z);
@@ -184,6 +183,7 @@ namespace DirectUI
 
 		bool m_bButtonDown;
 		bool m_bDrag;
+		bool m_bInit;
 		UINT m_nZ;
 		
 		POINT m_ptLBDown;
@@ -253,6 +253,7 @@ namespace DirectUI
 	class /*DirectUI_API*/ CLayerLayoutUI 
 		: public CVerticalLayoutUI , public Inter::IInterMessage
 	{
+		friend class CLayerUI;
 		friend class CGroupUI;
 	public:
 		CLayerLayoutUI();
@@ -345,7 +346,10 @@ namespace DirectUI
 		bool LayerAddAt(CLayerUI* src, UINT nZIndex);
 	public:
 		virtual void Init();
-
+		
+		// Event fire functions
+		CFuncSlot_1<CLayerUI*> slot_ZChange; //Fire z order changed
+		CFuncSlot_1<std::vector<CLayerUI*> > slot_SelectChange; //Fire select items function
 	protected:
 		void MoveItem(int nSrcIndex, int nDesIndex);
 		void MoveItem();
@@ -389,7 +393,7 @@ private:
 		bool m_bMultiSel;
 		bool m_bEnsureVisible; //选中的时候是否移动位置
 
-		bool m_bForbidPaint; // 不绘制
+		//bool m_bForbidPaint; // 不绘制
 		bool m_bRmSel; //
 	};
 
