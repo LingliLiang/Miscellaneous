@@ -204,7 +204,8 @@
   </Button>
 	<Option parent="Button" notifies="setfocus killfocus timer menu click selectchanged windowinit(root)">
     <Attribute name="group" default="" type="STRING" comment="所属组的名称，可不设"/>
-    <Attribute name="selected" default="false" type="BOOL" comment="是否选中"/><Attribute name="hotimage" default="" type="STRING" comment="鼠标悬浮的状态图片"/>
+    <Attribute name="selected" default="false" type="BOOL" comment="是否选中"/>
+    <Attribute name="hotimage" default="" type="STRING" comment="鼠标悬浮的状态图片"/>
     <Attribute name="selectedimage" default="" type="STRING" comment="选中的状态图片"/>
     <Attribute name="selectedhotimage" default="" type="STRING" comment="鼠标悬浮宁并选中时的状态图片"/>
 		<Attribute name="foreimage" default="" type="STRING" comment="前景图片,与button有冲突?"/>
@@ -313,6 +314,28 @@
     <Attribute name="defaultvalue" default="1.0" type="FLOAT" comment="默认数值"/>
     <Attribute name="multiple" default="1.0" type="FLOAT" comment="默认缩放数值因子"/>
   </EditSlider>
+  <EditSpinVar parent="Edit" notifies="click setfocus killfocus timer menu return textchanged windowinit(root)">
+    <!--注意: 该控件按下SPIN会有消息DUI_MSGTYPE_CLICK, wparam 为 spin按钮id,0为增按钮,1为减按钮, lparam为是否设置了自动增减-->
+    <Attribute name="emptytext" default="" type="STRING" comment="为空时显示的字串"/>
+    <Attribute name="etdropcolor" default="0x00000000" type="DWORD" comment="为空时当前字体颜色退色的程度,如(0x00111111)"/>
+    <Attribute name="headtext" default="" type="STRING" comment="显示再编辑框左边的说明字串, 如 [ 这是headtext:      这是显示字串 ]"/>
+    <Attribute name="enablespin" default="true" type="BOOL" comment="是否启用SPIN按钮,如(false)"/>
+    <Attribute name="autospin" default="false" type="BOOL" comment="是否启用自增减数值,如(false), 当按下SPIN按钮时进行数值(数据类型及步伐幅度需要设置)的自增减"/>
+    <Attribute name="vtype" default="0" type="INT" comment="数据类型, 0-原始 1-INT 2-double"/>
+    <Attribute name="value" default="0" type="INT,DOUBLE" comment="数据类型必须先设好,数据类型值, 如(1或1.00)"/>
+    <Attribute name="vstep" default="0.0" type="DOUBLE" comment="数据步伐幅度值, 如(1.00)"/>
+    <Attribute name="precise" default="1" type="INT" comment="double数据精度, 小数点位置"/>
+    <Attribute name="spinslide" default="0,0" type="SIZE" comment="SPIN按钮图片宽高, 如(20,20)"/>
+    <Attribute name="spinalign" default="2" type="INT" comment="SPIN按钮对齐方式, 0-放置在左边 1-左右分别放置一个 2-放置在右边"/>
+    <Attribute name="spin1normalimage" default="" type="STRING" comment="SPIN按钮状态图片"/>
+    <Attribute name="spin1hotimage" default="" type="STRING" comment="SPIN按钮状态图片"/>
+    <Attribute name="spin1pushedimage" default="" type="STRING" comment="SPIN按钮状态图片"/>
+    <Attribute name="spin1disabledimage" default="" type="STRING" comment="SPIN按钮状态图片"/>
+    <Attribute name="spin2normalimage" default="" type="STRING" comment="SPIN按钮状态图片"/>
+    <Attribute name="spin2hotimage" default="" type="STRING" comment="SPIN按钮状态图片"/>
+    <Attribute name="spin2pushedimage" default="" type="STRING" comment="SPIN按钮状态图片"/>
+    <Attribute name="spin2disabledimage" default="" type="STRING" comment="SPIN按钮状态图片"/>
+  </EditSpinVar>
   <DateTime parent="Label" comment="时间选择控件" notifies="setfocus killfocus">
   </DateTime>
   <RotateButton parent="Control" comment="" notifies="setfocus killfocus">
