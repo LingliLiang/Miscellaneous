@@ -12,13 +12,15 @@ namespace DirectUI
 		:m_dwDropColor(0xff3F3F3F),
 		m_bEnableSpin(TRUE),m_uSpinAlign(AL_RIGHT),m_uSpinSlide(),
 		m_uSpin1State(0),m_uSpin2State(0),m_varPrecise(1),m_varType(0),
-		m_varStep(0.0),m_bAutoSpin(FALSE)
+		m_varStep(0.0),m_bAutoSpin(FALSE),m_bEnableMaxMin(FALSE)
 	{
 		SetBkColor(0xff000000);
 		SetNativeBkColor(0xff262626);
 		SetNativeEditBkColor(0xff262626);
 		OnNotify += MakeDelegate(this, &CEditSpinVarUI::OnInnerNotify);
-		::memset(&m_unVar,0,sizeof(m_unVar));
+		::memset(&m_unVar,0,sizeof(uiVar));
+		::memset(&m_unMinVar,0,sizeof(uiVar));
+		::memset(&m_unMaxVar,0,sizeof(uiVar));
 	}
 
 	LPCTSTR CEditSpinVarUI::GetClass() const
@@ -56,7 +58,9 @@ namespace DirectUI
 		{
 			if (m_pWindow != NULL) {
 				m_pWindow->Close();
-			}return;
+			}
+			if (m_pParent != NULL) m_pParent->DoEvent(eventui);
+			return;
 		}
 		if( eventui.Type == UIEVENT_BUTTONDOWN || eventui.Type == UIEVENT_DBLCLICK )
 		{
@@ -147,36 +151,51 @@ namespace DirectUI
 		TNotifyUI &Msg = *(static_cast<TNotifyUI*>(lpMsg));
 		if(Msg.sType == DUI_MSGTYPE_TEXTCHANGED)
 		{
-			if(m_varType == 1)
-			{
-				int vInt = 0;
-				auto var = _stscanf_s(m_sText.GetData(),_T("%d"), &vInt);
-				if(var){
-					m_unVar.varInt = vInt;
-				}
-				else
+			ChangedText();
+		}
+		return true;
+	}
+
+	void CEditSpinVarUI::ChangedText()
+	{
+		if(m_varType == 1)
+		{
+			int vInt = 0;
+			auto var = _stscanf_s(m_sText.GetData(),_T("%d"), &vInt);
+			if(var){
+				m_unVar.varInt = vInt;
+				if(m_bEnableMaxMin)
 				{
-						m_sText.Format(_T("%d"),m_unVar.varInt);
+					if(m_unVar.varInt < m_unMinVar.varInt) m_unVar.varInt = m_unMinVar.varInt;
+					if(m_unVar.varInt > m_unMaxVar.varInt) m_unVar.varInt = m_unMaxVar.varInt;
 				}
 			}
-			else if(m_varType == 2)
+			else
 			{
-				double vDouble = 0;
-				auto var = _stscanf_s(m_sText.GetData(),_T("%lf"), &vDouble);
-				if(var){
-					m_unVar.varDouble = vDouble;
-				}
-				else
+				m_sText.Format(_T("%d"),m_unVar.varInt);
+			}
+		}
+		else if(m_varType == 2)
+		{
+			double vDouble = 0;
+			auto var = _stscanf_s(m_sText.GetData(),_T("%lf"), &vDouble);
+			if(var){
+				m_unVar.varDouble = vDouble;
+				if(m_bEnableMaxMin)
 				{
-					TCHAR fmt[64] = {0};
-					auto var2 = _stprintf_s(fmt,_T("%%.%dlf"),m_varPrecise);
-					if(var2){
-						m_sText.Format(fmt,m_unVar.varDouble);
-					}
+					if(m_unVar.varDouble < m_unMinVar.varDouble) m_unVar.varDouble = m_unMinVar.varDouble;
+					if(m_unVar.varDouble > m_unMaxVar.varDouble) m_unVar.varDouble = m_unMaxVar.varDouble;
+				}
+			}
+			else
+			{
+				TCHAR fmt[64] = {0};
+				auto var2 = _stprintf_s(fmt,_T("%%.%dlf"),m_varPrecise);
+				if(var2){
+					m_sText.Format(fmt,m_unVar.varDouble);
 				}
 			}
 		}
-		return true;
 	}
 
 	LPCTSTR CEditSpinVarUI::GetEmptyText()
@@ -212,6 +231,10 @@ namespace DirectUI
 		else if( _tcscmp(pstrName, _T("enablespin")) == 0 )
 		{
 			(_tcscmp(pstrValue, _T("true")) != 0) ? m_bEnableSpin = FALSE : m_bEnableSpin = TRUE;
+		}
+		else if( _tcscmp(pstrName, _T("enablemaxmin")) == 0 )
+		{
+			(_tcscmp(pstrValue, _T("true")) != 0) ? m_bEnableMaxMin = FALSE : m_bEnableMaxMin = TRUE;
 		}
 		else if( _tcscmp(pstrName, _T("spinslide")) == 0 ) 
 		{
@@ -253,6 +276,39 @@ namespace DirectUI
 		{
 			(_tcscmp(pstrValue, _T("true")) != 0) ? m_bAutoSpin = FALSE : m_bAutoSpin = TRUE;		
 		}
+		else if( _tcscmp(pstrName, _T("vmaxmin")) == 0 ) 
+		{
+			TCHAR strValue[128] = {0};
+			::memcpy_s(strValue,sizeof(strValue),pstrValue,_tcslen(pstrValue)*sizeof(TCHAR));
+			int pos = 0;
+			while(true)
+			{
+				if(!strValue[pos])
+				{
+					pos = -1;
+					break;
+				}
+				if(strValue[pos] == _T(','))
+				{
+					break;
+				}
+				pos++;
+			}
+			if(pos != -1)
+			{
+				strValue[pos] = _T('\0');
+				LPCTSTR pStr = &strValue[0];
+				LPCTSTR pStr1 = &strValue[pos+1];
+				if(m_varType == 1){
+					SetMaxValue(_ttoi(pStr));
+					SetMinValue(_ttoi(pStr1));
+				}
+				else if(m_varType == 2){
+					SetMaxValue(_tstof(pStr));
+					SetMinValue(_tstof(pStr1));
+				}
+			}
+		}
 		else CEditUI::SetAttribute(pstrName, pstrValue);
 	}
 
@@ -266,6 +322,14 @@ namespace DirectUI
 				rcPos.bottom - rcPos.top, SWP_NOZORDER | SWP_NOACTIVATE);        
 		}
 		CalcSpinPos();
+	}
+
+	void CEditSpinVarUI::SetText(LPCTSTR pstrText)
+	{
+		m_sText = pstrText;
+		ChangedText();
+		if( m_pWindow != NULL ) Edit_SetText(*m_pWindow, m_sText);
+		Invalidate();
 	}
 
 	void CEditSpinVarUI::CalcSpinPos()
@@ -437,10 +501,20 @@ namespace DirectUI
 			if(m_varType == 1)
 			{
 				index ? m_unVar.varInt -= (int)m_varStep : m_unVar.varInt += (int)m_varStep;
+				if(m_bEnableMaxMin)
+				{
+					if(m_unVar.varInt < m_unMinVar.varInt) m_unVar.varInt = m_unMinVar.varInt;
+					if(m_unVar.varInt > m_unMaxVar.varInt) m_unVar.varInt = m_unMaxVar.varInt;
+				}
 			}
 			else if(m_varType == 2)
 			{
 				index ? m_unVar.varDouble -= m_varStep : m_unVar.varDouble += m_varStep;
+				if(m_bEnableMaxMin)
+				{
+					if(m_unVar.varDouble < m_unMinVar.varDouble) m_unVar.varDouble = m_unMinVar.varDouble;
+					if(m_unVar.varDouble > m_unMaxVar.varDouble) m_unVar.varDouble = m_unMaxVar.varDouble;
+				}
 			}
 		}
 		if( m_pManager != NULL ) m_pManager->SendNotify(this, DUI_MSGTYPE_CLICK, index, m_bAutoSpin);
@@ -537,6 +611,11 @@ namespace DirectUI
 		if(m_varType == 1)
 		{
 			m_unVar.varInt = value;
+			if(m_bEnableMaxMin)
+			{
+				if(m_unVar.varInt < m_unMinVar.varInt) m_unVar.varInt = m_unMinVar.varInt;
+				if(m_unVar.varInt > m_unMaxVar.varInt) m_unVar.varInt = m_unMaxVar.varInt;
+			}
 			Invalidate();
 			return true;
 		}
@@ -547,6 +626,11 @@ namespace DirectUI
 		if(m_varType == 2)
 		{
 			m_unVar.varDouble = value;
+			if(m_bEnableMaxMin)
+			{
+				if(m_unVar.varDouble < m_unMinVar.varDouble) m_unVar.varDouble = m_unMinVar.varDouble;
+				if(m_unVar.varDouble > m_unMaxVar.varDouble) m_unVar.varDouble = m_unMaxVar.varDouble;
+			}
 			Invalidate();
 			return true;
 		}
@@ -572,5 +656,74 @@ namespace DirectUI
 	{
 		m_varStep = value;
 	}
+	bool CEditSpinVarUI::SetMaxValue(int value)
+	{
+		if(m_varType == 1)
+		{
+			m_unMaxVar.varInt = value;
+			return true;
+		}
+		return false;
+	}
+	bool CEditSpinVarUI::SetMaxValue(double value)
+	{
+		if(m_varType == 2)
+		{
+			m_unMaxVar.varDouble = value;
+			return true;
+		}
+		return false;
+	}
+	int CEditSpinVarUI::GetMaxValue() const
+	{
+		if(m_varType == 1)
+		{
+			return m_unMaxVar.varInt;
+		}
+		return 0;
+	}
+	double CEditSpinVarUI::GetMaxValue(double) const
+	{
+		if(m_varType == 2)
+		{
+			return m_unMaxVar.varDouble;
+		}
+		return 0.0;
+	}
+	bool CEditSpinVarUI::SetMinValue(int value)
+	{
+		if(m_varType == 1)
+		{
+			m_unMinVar.varInt = value;
+			return true;
+		}
+		return false;
+	}
+	bool CEditSpinVarUI::SetMinValue(double value)
+	{
+		if(m_varType == 2)
+		{
+			m_unMinVar.varDouble = value;
+			return true;
+		}
+		return false;
+	}
+	int CEditSpinVarUI::GetMinValue() const
+	{
+		if(m_varType == 1)
+		{
+			return m_unMinVar.varInt;
+		}
+		return 0;
+	}
+	double CEditSpinVarUI::GetMinValue(double) const
+	{
+		if(m_varType == 2)
+		{
+			return m_unMinVar.varDouble;
+		}
+		return 0.0;
+	}
+
 
 } //namespace DirectUI
