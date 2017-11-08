@@ -31,6 +31,7 @@ namespace DirectUI
 	private:
 		BOOL m_bHasParent;
 		CUIString m_strSkin;
+		BOOL m_bPaintInit;
 
 		//CWindowUI
 	public:
@@ -46,12 +47,11 @@ namespace DirectUI
 		virtual LRESULT OnPaint(WPARAM wParam, LPARAM lParam, BOOL& bHandled);
 
 		virtual CPoint GetPoint(LPARAM lParam){return CPoint(lParam);}
-	public:
+	private:
 		HDC m_hDcOffscreen;
-		HDC m_hDcBackground;
 		HBITMAP m_hbmpOffscreen;
 		LPBYTE m_pBmpOffscreenBits;
-		HBITMAP m_hbmpBackground;
+
 		BOOL m_bFirstLayout;
 		BOOL m_bLayeredWindow;
 	};

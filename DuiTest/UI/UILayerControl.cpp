@@ -6,10 +6,9 @@ namespace DirectUI
 
 	CLayerControlUI::CLayerControlUI()
 		:m_bHasParent(TRUE),
+		m_bPaintInit(TRUE),
 		m_hDcOffscreen(NULL),
-		m_hDcBackground(NULL),
 		m_hbmpOffscreen(NULL),
-		m_hbmpBackground(NULL),
 		m_bFirstLayout(TRUE),
 		m_bLayeredWindow(FALSE)
 	{
@@ -18,9 +17,7 @@ namespace DirectUI
 	CLayerControlUI::~CLayerControlUI()
 	{
 		if( m_hDcOffscreen != NULL ){ ::DeleteDC(m_hDcOffscreen); m_hDcOffscreen = NULL;}
-		if( m_hDcBackground != NULL ){ ::DeleteDC(m_hDcBackground); m_hDcBackground = NULL;}
 		if( m_hbmpOffscreen != NULL ){ ::DeleteObject(m_hbmpOffscreen); m_hbmpOffscreen = NULL;}
-		if( m_hbmpBackground != NULL ){ ::DeleteObject(m_hbmpBackground); m_hbmpBackground = NULL;}
 	}
 
 	//-----------------------------CControlUI---------------------------------
@@ -42,7 +39,7 @@ namespace DirectUI
 		{
 			Create(m_bHasParent ? m_pManager->GetPaintWindow() : NULL,
 				GetWindowClassName(),
-				WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN,
+				/*WS_VISIBLE | */WS_CLIPSIBLINGS | WS_CLIPCHILDREN,
 				0);
 		}
 		DWORD dwStyle = ::GetClassLong(*this,GCL_STYLE);
@@ -91,6 +88,10 @@ namespace DirectUI
 
 	void CLayerControlUI::DoPaint(HDC hDC, const RECT& rcPaint)
 	{
+		if(m_bPaintInit){
+			m_bPaintInit = FALSE;
+			SetVisible(m_bVisible);
+		}
 		// ²»»æÖÆ
 		__super::DoPaint(hDC, rcPaint);
 	}
@@ -143,11 +144,9 @@ namespace DirectUI
 
 	void CLayerControlUI::InitWindow()
 	{
-		m_PaintManager.SetBackgroundTransparent(FALSE);
+		m_PaintManager.SetBackgroundTransparent(TRUE);
 		if( m_hDcOffscreen != NULL ){ ::DeleteDC(m_hDcOffscreen); m_hDcOffscreen = NULL;}
-		if( m_hDcBackground != NULL ){ ::DeleteDC(m_hDcBackground); m_hDcBackground = NULL;}
 		if( m_hbmpOffscreen != NULL ){ ::DeleteObject(m_hbmpOffscreen); m_hbmpOffscreen = NULL;}
-		if( m_hbmpBackground != NULL ){ ::DeleteObject(m_hbmpBackground); m_hbmpBackground = NULL;}
 		::PostMessage(g_hMsgWnd,NS_WM_CHILD_JOIN,(WPARAM)m_hWnd,0);
 	}
 
@@ -261,13 +260,9 @@ namespace DirectUI
 						if( !::IsIconic(m_hWndPaint))
 							m_pRoot->SetPos(rcClient);
 						if (m_hDcOffscreen != NULL) ::DeleteDC(m_hDcOffscreen);
-						if (m_hDcBackground != NULL) ::DeleteDC(m_hDcBackground);
 						if (m_hbmpOffscreen != NULL) ::DeleteObject(m_hbmpOffscreen);
-						if (m_hbmpBackground != NULL) ::DeleteObject(m_hbmpBackground);
 						m_hDcOffscreen = NULL;
-						m_hDcBackground = NULL;
 						m_hbmpOffscreen = NULL;
-						m_hbmpBackground = NULL;
 					}
 					else 
 					{
@@ -297,7 +292,6 @@ namespace DirectUI
 			{
 				m_hDcOffscreen = ::CreateCompatibleDC(m_hDcPaint);
 				m_hbmpOffscreen = CreateBitmap(m_hDcPaint, rcClient.right - rcClient.left, rcClient.bottom - rcClient.top, &m_pBmpOffscreenBits);
-				//m_hbmpOffscreen = ::CreateCompatibleBitmap(m_hDcPaint, rcClient.right - rcClient.left, rcClient.bottom - rcClient.top); 
 				ASSERT(m_hDcOffscreen);
 				ASSERT(m_hbmpOffscreen);
 			}
@@ -315,6 +309,7 @@ namespace DirectUI
 				}
 
 				m_pRoot->DoPaint(m_hDcOffscreen, rcPaint);
+
 				//for( int i = 0; i < m_aPostPaintControls.GetSize(); i++ ) {
 				//    CControlUI* pPostPaintControl = static_cast<CControlUI*>(m_aPostPaintControls[i]);
 				//    pPostPaintControl->DoPostPaint(m_hDcOffscreen, ps.rcPaint);
@@ -337,9 +332,6 @@ namespace DirectUI
 				}
 
 				::RestoreDC(m_hDcOffscreen, iSaveDC);
-
-				//::BitBlt(ps.hdc, ps.rcPaint.left, ps.rcPaint.top, ps.rcPaint.right - ps.rcPaint.left,
-				//    ps.rcPaint.bottom - ps.rcPaint.top, m_hDcOffscreen, ps.rcPaint.left, ps.rcPaint.top, SRCCOPY);
 
 				RECT rcWnd = {0};
 				::GetWindowRect(m_hWnd, &rcWnd);
