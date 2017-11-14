@@ -10,7 +10,9 @@ namespace DirectUI
 		m_hDcOffscreen(NULL),
 		m_hbmpOffscreen(NULL),
 		m_bFirstLayout(TRUE),
-		m_bLayeredWindow(FALSE)
+		m_bLayeredWindow(FALSE),
+		m_nClipState(CLIP_NON-1),
+		m_bParentClip(FALSE)
 	{
 	}
 
@@ -69,6 +71,10 @@ namespace DirectUI
 	{
 		__super::SetPos(rc);
 		if(m_pManager){
+			if(m_bParentClip) //判断裁剪
+			{
+				DoParentClip();
+			}
 			POINT pt = { rc.left, rc.top};
 			::ClientToScreen(m_pManager->GetPaintWindow(),&pt);
 			::SetWindowPos(m_hWnd, NULL, pt.x, pt.y , rc.right - rc.left, rc.bottom - rc.top, SWP_NOZORDER | SWP_NOACTIVATE);
@@ -79,6 +85,8 @@ namespace DirectUI
 	{
 		if (_tcscmp(pstrName, _T("hasparent")) == 0) 
 			SetHasParentWnd(_tcscmp(pstrValue, _T("true")) == 0);
+		if (_tcscmp(pstrName, _T("clipparent")) == 0) 
+			SetParentClip(_tcscmp(pstrValue, _T("true")) == 0);
 		else if (_tcscmp(pstrName, _T("layered")) == 0) 
 			SetLayeredWnd(_tcscmp(pstrValue, _T("true")) == 0);
 		else if (_tcscmp(pstrName, _T("skinfile")) == 0) SetSkinFile(pstrValue);
@@ -95,7 +103,6 @@ namespace DirectUI
 		// 不绘制
 		__super::DoPaint(hDC, rcPaint);
 	}
-
 
 	BOOL CLayerControlUI::IsHasParentWnd() const
 	{
@@ -124,6 +131,11 @@ namespace DirectUI
 		m_strSkin = pstrSkin;
 	}
 
+	void CLayerControlUI::SetParentClip(BOOL b)
+	{
+		if (m_bParentClip == b) return;
+		m_bParentClip = b;
+	}
 
 	//------------------------------CWindowUI--------------------------------
 
@@ -144,7 +156,6 @@ namespace DirectUI
 
 	void CLayerControlUI::InitWindow()
 	{
-		m_PaintManager.SetBackgroundTransparent(TRUE);
 		if( m_hDcOffscreen != NULL ){ ::DeleteDC(m_hDcOffscreen); m_hDcOffscreen = NULL;}
 		if( m_hbmpOffscreen != NULL ){ ::DeleteObject(m_hbmpOffscreen); m_hbmpOffscreen = NULL;}
 		::PostMessage(g_hMsgWnd,NS_WM_CHILD_JOIN,(WPARAM)m_hWnd,0);
@@ -159,9 +170,11 @@ namespace DirectUI
 			if(bHandled) return lres;
 		}
 		else if(uMsg == NS_WM_CHILD_MOVE){
-			CPoint pt(lParam);
-			pt.x += m_rcItem.left;
-			pt.y += m_rcItem.top;
+			//CPoint pt(lParam);
+			//pt.x += m_rcItem.left;
+			//pt.y += m_rcItem.top;
+			POINT pt = { m_rcItem.left, m_rcItem.top};
+			::ClientToScreen(m_pManager->GetPaintWindow(),&pt);
 			::SetWindowPos(m_hWnd, NULL, pt.x, pt.y , 0, 0, SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSIZE);
 			//::OutputDebugStringA("CLayerControlUI - WM_MOVE\n");
 			return 0;
@@ -214,6 +227,94 @@ namespace DirectUI
 			return hBitmap;
 		}
 	} //unnamed namespace
+
+	LRESULT CLayerControlUI::OnCreate(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
+	{
+		LONG styleValue = ::GetWindowLong(*this, GWL_STYLE);
+		styleValue &= ~WS_CAPTION;
+		::SetWindowLong(*this, GWL_STYLE, styleValue | WS_CLIPSIBLINGS | WS_CLIPCHILDREN);
+
+		RECT rcClient;
+		::GetClientRect(*this, &rcClient);
+		::SetWindowPos(*this, NULL, rcClient.left, rcClient.top, rcClient.right - rcClient.left, \
+			rcClient.bottom - rcClient.top, SWP_FRAMECHANGED);
+
+		m_PaintManager.Init(m_hWnd);
+		m_PaintManager.AddPreMessageFilter(this);
+
+		CDialogBuilder builder;
+		if (!GetSkinFolder().IsEmpty())
+		{
+			CUIString strResourcePath = m_PaintManager.GetInstancePath();
+			strResourcePath += GetSkinFolder().GetData();
+			m_PaintManager.SetResourcePath(strResourcePath.GetData());
+		}
+
+		switch(GetResourceType())
+		{
+		case UILIB_ZIP:
+			m_PaintManager.SetResourceZip(GetZIPFileName().GetData(), true);
+			break;
+		case UILIB_ZIPRESOURCE:
+			{
+				HRSRC hResource = ::FindResource(m_PaintManager.GetResourceDll(), GetResourceID(), _T("ZIPRES"));
+				if (hResource == NULL)
+					return 0L;
+
+				DWORD dwSize = 0;
+				HGLOBAL hGlobal = ::LoadResource(m_PaintManager.GetResourceDll(), hResource);
+				if (hGlobal == NULL) 
+				{
+					::FreeResource(hResource);
+					return 0L;
+				}
+
+				dwSize = ::SizeofResource(m_PaintManager.GetResourceDll(), hResource);
+				if (dwSize == 0)
+					return 0L;
+
+				m_lpResourceZIPBuffer = new BYTE[dwSize];
+				if (m_lpResourceZIPBuffer != NULL)
+				{
+					::CopyMemory(m_lpResourceZIPBuffer, (LPBYTE)::LockResource(hGlobal), dwSize);
+				}
+				::FreeResource(hResource);
+				m_PaintManager.SetResourceZip(m_lpResourceZIPBuffer, dwSize);
+			}
+			break;
+		}
+
+		CControlUI* pRoot = NULL;
+		if (GetResourceType() == UILIB_RESOURCE)
+		{
+			CUIString strXml = GetSkinFile().GetData();
+			STRINGorID xmlID(strXml);
+			pRoot = builder.Create(xmlID, _T("xml"), this, &m_PaintManager);
+		}
+		else
+			pRoot = builder.Create(GetSkinFile().GetData(), (UINT)0, this, &m_PaintManager);
+
+		ASSERT(pRoot);
+		if (pRoot == NULL)
+		{
+			CUIString strXml = GetSkinFile().GetData();
+			CUIString str;
+			str.Format(_T("Skin %s error"), strXml.GetData());			
+			MessageBox(NULL,str, _T("提示"), MB_OK|MB_ICONERROR);
+			ExitProcess(1);
+			return 0;
+		}
+
+		m_PaintManager.AttachDialog(pRoot);
+		m_PaintManager.AddNotifier(this);
+		
+		//不知道为什么要加这句在CWindowUI,使用bktrans设置Transparent
+		//m_PaintManager.SetBackgroundTransparent(TRUE); 
+
+		InitWindow();
+		return 0;
+	}
+
 
 	LRESULT CLayerControlUI::OnPaint(WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 	{
@@ -355,6 +456,66 @@ namespace DirectUI
 
 		}       
 		return 0;
+	}
+
+	void CLayerControlUI::DoParentClip()
+	{
+		if(!m_hWnd) return;
+		auto pParent = m_pParent;
+		int nClipState = CLIP_NON;
+		CRect rcItem(m_rcItem),rcAnd, rcParent;
+		while(pParent)
+		{
+			rcParent = pParent->GetPos();
+			if(m_pParent->GetInterface(DUI_CTR_CONTAINER)){
+				rcParent.Deflate( &((CContainerUI*)m_pParent)->GetInset());
+			}
+			::IntersectRect(&rcAnd,&rcParent,&rcItem);
+			if(rcAnd.IsNull())
+			{
+				nClipState = CLIP_FULL; //裁剪全部
+				break;
+			}
+			else if(rcAnd.EqualRect(&rcItem))
+			{
+				nClipState = CLIP_NON; //没有裁剪,继续向父辈查询裁剪状况
+			}
+			else
+			{
+				nClipState = CLIP_HALF;
+				break;
+			}
+			pParent = pParent->GetParent();
+		}
+
+		if(m_nClipState == nClipState && nClipState != CLIP_HALF) //状态相同不需要进行操作
+		{
+			return ;
+		}
+
+	//	DUI__Trace(_T("nClipState %d"), nClipState);
+
+		
+		if(CLIP_HALF == nClipState)
+		{
+			rcAnd.MoveToXY(rcAnd.left-rcItem.left,rcAnd.top-rcItem.top); //还原到原点区域
+			//DUI__Trace(_T("rcAnd {%d,%d, %d, %d}"), rcAnd.left,rcAnd.top, rcAnd.right, rcAnd.bottom);
+			//DUI__Trace(_T("rcItem {%d,%d, %d, %d}"), rcItem.left,rcItem.top, rcItem.right, rcItem.bottom);
+			//rcItem.MoveToXY(0,0);
+			//DUI__Trace(_T("rcItem {%d,%d, %d, %d}"), rcItem.left,rcItem.top, rcItem.right, rcItem.bottom);
+			HRGN hRgn = ::CreateRectRgn(rcAnd.left,rcAnd.top, rcAnd.right, rcAnd.bottom);
+			::SetWindowRgn(m_hWnd, hRgn, TRUE);
+		}
+		else if(CLIP_NON == nClipState)
+		{
+			::SetWindowRgn(m_hWnd, NULL, TRUE);
+		}
+		else
+		{
+			HRGN hRgn =  ::CreateRectRgn(0, 0, 0, 0);
+			::SetWindowRgn(m_hWnd, hRgn, TRUE);
+		}
+		m_nClipState = nClipState;
 	}
 
 

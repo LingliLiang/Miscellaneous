@@ -27,11 +27,16 @@ namespace DirectUI
 		BOOL IsLayeredWnd() const;
 		void SetLayeredWnd(BOOL b);
 		void SetSkinFile(LPCTSTR pstrSkin);
-
+		void SetParentClip(BOOL b);
 	private:
 		BOOL m_bHasParent;
 		CUIString m_strSkin;
 		BOOL m_bPaintInit;
+		
+		//启用裁剪, 当超出父辈的范围时进行窗口的裁剪
+		//适应于动态改变的布局,如滚动条的滚动.
+		//该选项会有大量计算,固定界面时不建议使用
+		BOOL m_bParentClip; 
 
 		//CWindowUI
 	public:
@@ -44,16 +49,21 @@ namespace DirectUI
 		virtual LRESULT ResponseDefaultKeyEvent(WPARAM wParam);
 		virtual CControlUI* CreateControl(LPCTSTR pstrClass);
 		virtual LRESULT HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam);
+		virtual LRESULT OnCreate(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
 		virtual LRESULT OnPaint(WPARAM wParam, LPARAM lParam, BOOL& bHandled);
 
 		virtual CPoint GetPoint(LPARAM lParam){return CPoint(lParam);}
 	private:
+		void DoParentClip();
+
 		HDC m_hDcOffscreen;
 		HBITMAP m_hbmpOffscreen;
 		LPBYTE m_pBmpOffscreenBits;
 
 		BOOL m_bFirstLayout;
 		BOOL m_bLayeredWindow;
+		enum emClipState { CLIP_NON/*无裁剪*/,CLIP_HALF/*裁剪部分*/,CLIP_FULL/*全部裁剪*/};
+		UINT m_nClipState; //当前的裁剪状态,由滚动条导致的超出界面的状态
 	};
 
 
