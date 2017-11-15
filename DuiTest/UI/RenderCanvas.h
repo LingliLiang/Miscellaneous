@@ -1,5 +1,6 @@
 #ifndef __RENDERCANVAS_H__
 #define __RENDERCANVAS_H__
+#include <functional>
 
 class CRenderCanvas : public CWindowWnd
 {

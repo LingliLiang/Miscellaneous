@@ -497,8 +497,8 @@ namespace NSCGUI
 	/**
 	*CColorPanel
 	*/
-#define COLORPANELXML _T("common\\color_panel\\color_panel.xml")
-#define SKIN_FOLDER _T("skin\\default")
+#define COLORPANELXML _T("color_panel\\color_panel.xml")
+#define SKIN_FOLDER _T("")
 
 	CColorPanel::CColorPanel()
 	{

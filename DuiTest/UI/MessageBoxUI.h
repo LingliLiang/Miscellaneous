@@ -1,8 +1,8 @@
-#ifndef _NSCG_MESSAGEBOXUI_H_
-#define _NSCG_MESSAGEBOXUI_H_
+#ifndef __MESSAGEBOXUI_H_
+#define __MESSAGEBOXUI_H_
 
 
-namespace NSCGUNTILS
+namespace DirectUI
 {
 //MB_OK,MB_YESNO,MB_YESNOCANCEL
 #define MB_ICONINFO 0x00000050L
@@ -87,7 +87,7 @@ namespace NSCGUNTILS
 		return pMessageBox->ShowModal();
 	}
 
-} //namespace NSCGUNTILS
+} //namespace DirectUI
 
 
-#endif //_NSCG_MESSAGEBOXUI_H_
+#endif //__MESSAGEBOXUI_H_

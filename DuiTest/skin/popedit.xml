@@ -1,7 +1,0 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
-<Window size="200,38" caption="0,0,0,2" roundcorner="4,4" defaultfontcolor="#FFFFFFFF" alpha="225">
-  <Font name="微软雅黑" size="18" default="true"/>
-  <HorizontalLayout bkcolor="#FF191919" inset="0,2,0,0">
-       <Edit height="36" roundcorner="4,4" bordersize="1" bordercolor="#FF000000"  bkcolor="#FF191919" nativebkcolor="#FF191919"/>
-  </HorizontalLayout>
-  </Window>

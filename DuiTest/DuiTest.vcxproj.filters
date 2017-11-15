@@ -1,31 +1,98 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="源文件">
-      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>
-      </Extensions>
-    </Filter>
     <Filter Include="资源文件">
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="源文件\ui">
-      <UniqueIdentifier>{afa7ebf1-9716-4e3a-827d-08926bd99e32}</UniqueIdentifier>
+    <Filter Include="UI">
+      <UniqueIdentifier>{faf024ab-5759-4a80-b3ce-bdf825dea4b9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Utils">
+      <UniqueIdentifier>{34032415-5e6b-4aa9-88dc-b52dd047f792}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Skin">
+      <UniqueIdentifier>{9fe9db60-95b3-48e1-8b47-3d479cb3edc0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Xml">
+      <UniqueIdentifier>{05624565-ed93-4fe4-8074-b5f534d4d8d2}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="duitest.cpp">
-      <Filter>源文件</Filter>
+    <ClCompile Include="duitest.cpp" />
+    <ClCompile Include="stdafx.cpp" />
+    <ClCompile Include="WndEventImpl.cpp" />
+    <ClCompile Include="UI\AutoLayoutUI.cpp">
+      <Filter>UI</Filter>
     </ClCompile>
-    <ClCompile Include="stdafx.cpp">
-      <Filter>源文件</Filter>
+    <ClCompile Include="UI\BricksTabUI.cpp">
+      <Filter>UI</Filter>
     </ClCompile>
-    <ClCompile Include="TestWin.cpp">
-      <Filter>源文件</Filter>
+    <ClCompile Include="UI\ColorPanel.cpp">
+      <Filter>UI</Filter>
     </ClCompile>
-    <ClCompile Include="LayerLayoutUI.cpp">
-      <Filter>源文件\ui</Filter>
+    <ClCompile Include="UI\DockPanel.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="UI\LayerLayoutUI.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="UI\MessageBoxUI.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="UI\PreloaderWin.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="UI\RenderCanvas.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="UI\UIAnalogStick.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="UI\UIControlWnd.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="UI\UIDataExchange.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="UI\UILayerControl.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="UI\UIScrollView.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="UI\UISliderControl.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="UI\UISpinButton.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\AudioManager.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\AudioPlaybackCaputre.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\DlgUtils.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\DropFiles.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\EventTrigger.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\FontLoader.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\HotKeyManager.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\NetworkCardInfo.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\UIFontLoader.cpp">
+      <Filter>Utils</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -34,20 +101,110 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="HeapTracked.h">
-      <Filter>源文件</Filter>
+    <ClInclude Include="stdafx.h" />
+    <ClInclude Include="targetver.h" />
+    <ClInclude Include="IWndEvent.h" />
+    <ClInclude Include="WndEventImpl.h" />
+    <ClInclude Include="UI\AutoLayoutUI.h">
+      <Filter>UI</Filter>
     </ClInclude>
-    <ClInclude Include="targetver.h">
-      <Filter>源文件</Filter>
+    <ClInclude Include="UI\BricksTabUI.h">
+      <Filter>UI</Filter>
     </ClInclude>
-    <ClInclude Include="stdafx.h">
-      <Filter>源文件</Filter>
+    <ClInclude Include="UI\ColorPanel.h">
+      <Filter>UI</Filter>
     </ClInclude>
-    <ClInclude Include="TestWin.h">
-      <Filter>源文件</Filter>
+    <ClInclude Include="UI\DockPanel.h">
+      <Filter>UI</Filter>
     </ClInclude>
-    <ClInclude Include="LayerLayoutUI.h">
-      <Filter>源文件\ui</Filter>
+    <ClInclude Include="UI\FloatWindowUI.h">
+      <Filter>UI</Filter>
     </ClInclude>
+    <ClInclude Include="UI\LayerLayoutUI.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="UI\MessageBoxUI.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="UI\PreloaderWin.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="UI\RenderCanvas.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="UI\UIAnalogStick.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="UI\UIControlWnd.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="UI\UIDataExchange.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="UI\UILayerControl.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="UI\UIScrollView.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="UI\UISliderControl.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="UI\UISpinButton.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\AudioManager.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\AudioPlaybackCaputre.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\CMessageWnd.hpp">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\DlgUtils.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\DropFiles.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\EventTrigger.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\FontLoader.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\FunctionSlot.hpp">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\GlobalInstHost.hpp">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\HotKeyManager.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\NetworkCardInfo.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\UIFontLoader.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\VKeyDefines.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="xml\dockarrt.xml">
+      <Filter>Xml</Filter>
+    </None>
+    <None Include="xml\属性列表.xml">
+      <Filter>Xml</Filter>
+    </None>
+    <None Include="Utils\UIFontLoader.txt">
+      <Filter>Utils</Filter>
+    </None>
+    <None Include="skin\main_frame.xml">
+      <Filter>Skin</Filter>
+    </None>
   </ItemGroup>
 </Project>

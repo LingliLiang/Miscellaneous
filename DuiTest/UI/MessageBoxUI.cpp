@@ -1,11 +1,11 @@
 #include "stdafx.h"
 #include "MessageBoxUI.h"
 
-#define SKINFOLDER _T("skin\\default");
+#define SKINFOLDER _T("");
+static const TCHAR* xml_path = _T("messagebox\\");
+static const TCHAR* xml = _T("messagebox.xml");
 
-static const TCHAR* xml = _T("common\\MessageBox.xml");
-
-namespace NSCGUNTILS
+namespace DirectUI
 {
 
 	LPCTSTR CMessageBoxUI::GetWindowClassName() const
@@ -64,23 +64,25 @@ namespace NSCGUNTILS
 			break;
 		}
 		//Icon
+		CUIString bkimg;
 		switch(iIcon)
 		{
 		case MB_ICONQUERY:
-			pIcon->SetBkImage(_T("common\\icon_query.png"));
+			bkimg.Format(_T("%s%s"), xml_path, _T("icon_query.png"));
 			break;
 		case MB_ICONWARNING:
-			pIcon->SetBkImage(_T("common\\icon_warning.png"));
+						bkimg.Format(_T("%s%s"), xml_path, _T("icon_warning.png"));
 			pText->SetTextColor(0xE6CD5C);
 			break;
 		case MB_ICONERROR:
-			pIcon->SetBkImage(_T("common\\icon_error.png"));
+						bkimg.Format(_T("%s%s"), xml_path, _T("icon_error.png"));
 			pText->SetTextColor(0xFFFF0000);
 			break;
 		default: //MB_ICONINFO
-			pIcon->SetBkImage(_T("common\\icon_info.png"));
+						bkimg.Format(_T("%s%s"), xml_path, _T("icon_info.png"));
 			break;
 		}
+		pIcon->SetBkImage(bkimg);
 	}
 
 	LRESULT CMessageBoxUI::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -175,6 +177,6 @@ namespace NSCGUNTILS
 	}
 
 
-} //namespace NSCGUNTILS
+} //namespace DirectUI
 
 

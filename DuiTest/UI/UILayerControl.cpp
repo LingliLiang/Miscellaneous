@@ -158,7 +158,6 @@ namespace DirectUI
 	{
 		if( m_hDcOffscreen != NULL ){ ::DeleteDC(m_hDcOffscreen); m_hDcOffscreen = NULL;}
 		if( m_hbmpOffscreen != NULL ){ ::DeleteObject(m_hbmpOffscreen); m_hbmpOffscreen = NULL;}
-		::PostMessage(g_hMsgWnd,NS_WM_CHILD_JOIN,(WPARAM)m_hWnd,0);
 	}
 
 	LRESULT CLayerControlUI::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -169,17 +168,6 @@ namespace DirectUI
 			LRESULT lres = OnPaint(wParam, lParam, bHandled);
 			if(bHandled) return lres;
 		}
-		else if(uMsg == NS_WM_CHILD_MOVE){
-			//CPoint pt(lParam);
-			//pt.x += m_rcItem.left;
-			//pt.y += m_rcItem.top;
-			POINT pt = { m_rcItem.left, m_rcItem.top};
-			::ClientToScreen(m_pManager->GetPaintWindow(),&pt);
-			::SetWindowPos(m_hWnd, NULL, pt.x, pt.y , 0, 0, SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSIZE);
-			//::OutputDebugStringA("CLayerControlUI - WM_MOVE\n");
-			return 0;
-		}
-
 		return __super::HandleMessage(uMsg, wParam, lParam);
 	}
 

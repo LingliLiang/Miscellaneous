@@ -12,9 +12,9 @@
 		<Control height="1" bkcolor="#FF000000"/>
 		<HorizontalLayout name="hl_btn" bkcolor="#FF262626" height="60" inset="20,15,20,15" childpadding="4" >
 			<Control />
-			<Button name="btn_ok" text="是" height="30" width="80" visible="fasle" normalimage="file='common\\btn_normal.png' corner='4,4,4,4' " hotimage="file='common\\btn_hot.png' corner='4,4,4,4' " pushedimage="file='common\\btn_pushed.png' corner='4,4,4,4' " />
-			<Button name="btn_no" text="否" height="30" width="80" visible="fasle" normalimage="file='common\\btn_normal.png' corner='4,4,4,4' " hotimage="file='common\\btn_hot.png' corner='4,4,4,4' " pushedimage="file='common\\btn_pushed.png' corner='4,4,4,4' " />
-			<Button name="btn_cancel" text="取消" height="30" width="80" visible="fasle" normalimage="file='common\\btn_normal.png' corner='4,4,4,4' " hotimage="file='common\\btn_hot.png' corner='4,4,4,4' " pushedimage="file='common\\btn_pushed.png' corner='4,4,4,4' " />
+			<Button name="btn_ok" text="是" height="30" width="80" visible="fasle" normalimage="file='messagebox\\btn_normal.png' corner='4,4,4,4' " hotimage="file='messagebox\\btn_hot.png' corner='4,4,4,4' " pushedimage="file='messagebox\\btn_pushed.png' corner='4,4,4,4' " />
+			<Button name="btn_no" text="否" height="30" width="80" visible="fasle" normalimage="file='messagebox\\btn_normal.png' corner='4,4,4,4' " hotimage="file='messagebox\\btn_hot.png' corner='4,4,4,4' " pushedimage="file='messagebox\\btn_pushed.png' corner='4,4,4,4' " />
+			<Button name="btn_cancel" text="取消" height="30" width="80" visible="fasle" normalimage="file='messagebox\\btn_normal.png' corner='4,4,4,4' " hotimage="file='messagebox\\btn_hot.png' corner='4,4,4,4' " pushedimage="file='messagebox\\btn_pushed.png' corner='4,4,4,4' " />
 		</HorizontalLayout>
 	</VerticalLayout>
 </Window>

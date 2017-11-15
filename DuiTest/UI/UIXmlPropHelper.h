@@ -2,7 +2,7 @@
 #include <map>
 #include <functional>
 #include "UIDataExchange.h"
-#include "G:\msys64\home\boost-1_64\include\boost\archive\basic_archive.hpp"
+//#include "G:\msys64\home\boost-1_64\include\boost\archive\basic_archive.hpp"
 class UDECollectionCallBack;
 
 class CXmlPropDataHelper : public  CUIDataExchange

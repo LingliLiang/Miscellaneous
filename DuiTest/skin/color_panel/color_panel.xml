@@ -14,13 +14,13 @@
       </HorizontalLayout>
     </HorizontalLayout>
     <HorizontalLayout height="152"  childpadding="10">
-      <HSVContainer name="hsv_color_container" inset="1,1,1,1" height="152" width="152"  bordersize="1" bordercolor="#FF191919" selecterimage="common\\color_panel\\selecter.png" selectersize="12,12"> 
+      <HSVContainer name="hsv_color_container" inset="1,1,1,1" height="152" width="152"  bordersize="1" bordercolor="#FF191919" selecterimage="color_panel\\selecter.png" selectersize="12,12"> 
       </HSVContainer>
-        <Slider name="hue_slider" height="152" width="18" hor="false" min="0" max="360" bkimage="common\\color_panel\\hue_bk.png" thumbimage="common\\color_panel\\hue_thumb.png" thumbsize="18,3" />
+        <Slider name="hue_slider" height="152" width="18" hor="false" min="0" max="360" bkimage="color_panel\\hue_bk.png" thumbimage="color_panel\\hue_thumb.png" thumbsize="18,3" />
     </HorizontalLayout>
     <Control height="4" />
     <HorizontalLayout height="16" visible="true">
-    <Slider name="alpha_slider" height="12" width="152" hor="true" min="0" max="255" bkimage="common\\color_panel\\alpha_bk.png" foreimage="common\\color_panel\\alpha_fore.png" thumbimage="common\\color_panel\\alpha_thumb.png" thumbsize="12,12" />
+    <Slider name="alpha_slider" height="12" width="152" hor="true" min="0" max="255" bkimage="color_panel\\alpha_bk.png" foreimage="color_panel\\alpha_fore.png" thumbimage="color_panel\\alpha_thumb.png" thumbsize="12,12" />
     </HorizontalLayout>
       <TileLayout name="tl_color_block" childpadding="4" columns="8" >
         <ColorChunk height="18" width="18" borderround="2,2" bordersize="1" bordercolor="#FF161616" bkcolor="#FF000000" />
