@@ -33,6 +33,16 @@ namespace DirectUI
 		void SetRingpPushImage(LPCTSTR pStrImage);
 		LPCTSTR GetRingDisableImage() const;
 		void SetRingDisableImage(LPCTSTR pStrImage);
+		
+		LPCTSTR GetCalibrationFrontImage() const;
+		void SetCalibrationFrontImage(LPCTSTR pStrImage);
+		LPCTSTR GetCalibrationBackImage() const;
+		void SetCalibrationBackImage(LPCTSTR pStrImage);
+
+		LPCTSTR GetFocusImage() const;
+		void SetFocusImage(LPCTSTR pStrImage);
+		LPCTSTR GetFrontImage() const;
+		void SetFrontImage(LPCTSTR pStrImage);
 
 		int	 GetRadius() const;
 		void SetRadius(LPCTSTR pStrRadius);
@@ -56,8 +66,17 @@ namespace DirectUI
 			__out CUIString* pstrFile,
 			__out Gdiplus::Rect* prcSrc,
 			__out Gdiplus::Rect* prcDest);
-
-
+		class CAngle {
+		public:
+			float CalculateAngle(
+				float& fRoll,
+				//float& fOffset, 
+				const POINT ptMove,
+				const POINT ptCenter,
+				ULONG& ulDistance,
+				BOOL bAddCre);
+		private:
+		};
 		struct _tagGearProp
 		{
 			float fAngle;
@@ -66,6 +85,7 @@ namespace DirectUI
 			unsigned int nIterRadius;
 			POINT ptCenter;
 			HRGN hRgn;
+			CAngle angle;
 		};
 		unsigned int m_nRadius;
 		unsigned int m_nIterRadius;

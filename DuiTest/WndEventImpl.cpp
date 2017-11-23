@@ -72,6 +72,8 @@ bool CWndEventImpl::Notify(TNotifyUI& msg)
 	return false;
 }
 
+#include "TimerThread.h"
+std::shared_ptr<CTimerThread> timerThd;
 
 bool CWndEventImpl::OnClick(TNotifyUI& msg)
 {
@@ -79,8 +81,22 @@ bool CWndEventImpl::OnClick(TNotifyUI& msg)
 
 	if (sCtrlName == _T("testbtn"))
 	{ 
+		timerThd.reset(new CTimerThread);
 	}
-
+	else if (sCtrlName == _T("testbtn1"))
+	{ 
+		if(timerThd)
+		{
+			timerThd->CreateTimer(1000,0);
+		}
+	}
+	else if (sCtrlName == _T("testbtn2"))
+	{ 
+		if(timerThd)
+		{
+			timerThd->KillTimer();
+		}
+	}
 	return false;
 }
 

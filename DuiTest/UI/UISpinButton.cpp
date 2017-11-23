@@ -6,7 +6,7 @@ static const float  PI = 3.1415926;
 namespace DirectUI
 {
 	CSpinButtonUI::CSpinButtonUI()
-		:m_nRadius(100),m_uButtonState(0),m_fAngle(0),m_nStickStep(0),m_nStep(0)
+		:m_nRadius(100),m_uButtonState(0),m_uOutButtonState(0),m_fAngle(0),m_nStickStep(0),m_nStep(0)
 	{
 		GdiplusStartup(&m_gdiplusToken, &m_gdiplusStartupInput, NULL);
 		m_ptCenter.x = m_ptCenter.y = 0;
@@ -49,71 +49,6 @@ namespace DirectUI
 
 		return CControlUI::GetInterface(pstrName);
 	}
-
-	LPCTSTR CSpinButtonUI::GetCapNormalImage() const
-	{
-		return m_strCapNormalImg;
-	}
-
-	void CSpinButtonUI::SetCapNormalImage(LPCTSTR pStrImage)
-	{
-		m_strCapNormalImg = pStrImage;
-	}
-
-	LPCTSTR CSpinButtonUI::GetCapHotImage() const
-	{
-		return m_strCapHotImg;
-	}
-
-	void CSpinButtonUI::SetCapHotImage(LPCTSTR pStrImage)
-	{
-		m_strCapHotImg = pStrImage;
-	}
-
-	LPCTSTR CSpinButtonUI::GetCapPushImage() const
-	{
-		return m_strCapPushImg;
-	}
-
-	void CSpinButtonUI::SetCapPushImage(LPCTSTR pStrImage)
-	{
-		m_strCapPushImg = pStrImage;
-	}
-
-	LPCTSTR CSpinButtonUI::GetCapDisableImage() const
-	{
-		return m_strCapDisableImg;
-	}
-
-	void CSpinButtonUI::SetCapDisableImage(LPCTSTR pStrImage)
-	{
-		m_strCapDisableImg = pStrImage;
-	}
-
-	int	CSpinButtonUI::GetRadius() const
-	{
-		return m_nRadius;
-	}
-
-	void CSpinButtonUI::SetRadius(LPCTSTR pStrRadius)
-	{
-		ASSERT(pStrRadius);
-		m_nRadius = _ttoi(pStrRadius);
-	}
-
-	POINT CSpinButtonUI::GetCenterPoint() const
-	{
-		return m_ptCenter;
-	}
-
-	void CSpinButtonUI::SetCenterPoint(LPCTSTR pStrPoint)
-	{
-		ASSERT(pStrPoint);
-		LPTSTR pstr = NULL;
-		m_ptCenter.x = _tcstol(pStrPoint, &pstr, 10);  ASSERT(pstr);    
-		m_ptCenter.y = _tcstol(pstr + 1, &pstr, 10);   ASSERT(pstr);   
-	}
-
 
 	SIZE CSpinButtonUI::EstimateSize(SIZE szAvailable)
 	{
@@ -230,26 +165,36 @@ namespace DirectUI
 		else if (_tcscmp(pstrName, _T("caphotimage")) == 0) SetCapHotImage(pstrValue);
 		else if (_tcscmp(pstrName, _T("cappushimage")) == 0) SetCapPushImage(pstrValue);
 		else if (_tcscmp(pstrName, _T("capdisableimage")) == 0) SetCapDisableImage(pstrValue);
-		else if (_tcscmp(pstrName, _T("ringnormalimage")) == 0) SetCapNormalImage(pstrValue);
-		else if (_tcscmp(pstrName, _T("ringhotimage")) == 0) SetCapHotImage(pstrValue);
-		else if (_tcscmp(pstrName, _T("ringpushimage")) == 0) SetCapPushImage(pstrValue);
-		else if (_tcscmp(pstrName, _T("ringdisableimage")) == 0) SetCapDisableImage(pstrValue);
-		else if (_tcscmp(pstrName, _T("calimage")) == 0) m_strCalibrationFrontImg = (pstrValue);
+		else if (_tcscmp(pstrName, _T("ringnormalimage")) == 0) SetRingNormalImage(pstrValue);
+		else if (_tcscmp(pstrName, _T("ringhotimage")) == 0) SetRingHotImage(pstrValue);
+		else if (_tcscmp(pstrName, _T("ringpushimage")) == 0) SetRingpPushImage(pstrValue);
+		else if (_tcscmp(pstrName, _T("ringdisableimage")) == 0) SetRingDisableImage(pstrValue);
+		else if (_tcscmp(pstrName, _T("calfrontimage")) == 0) SetCalibrationFrontImage(pstrValue);
+		else if (_tcscmp(pstrName, _T("calbackimage")) == 0) SetCalibrationBackImage(pstrValue);
+		else if (_tcscmp(pstrName, _T("frontimage")) == 0) SetFrontImage(pstrValue);
+		else if (_tcscmp(pstrName, _T("focusimage")) == 0) SetFocusImage(pstrValue);
 		else CControlUI::SetAttribute(pstrName, pstrValue);		
 	}
 
-	void CSpinButtonUI::AdjustAngle(POINT & ptMove)
+	float CSpinButtonUI::CAngle::CalculateAngle(
+		float& fRoll, /*转动过的角度, + 顺时针 -逆时针, 表示转过的圈数(360为一圈)*/
+		//float& fOffset, 
+		const POINT ptMove, /*当前可移动点的位置*/
+		const POINT ptCenter, /*圆心点的位置*/
+		ULONG& ulDistance, /*可移动点与圆心点的距离*/
+		BOOL bAddCre)
 	{
-		REAL fAngle = 0.0;
-		LONG CenterX = m_rcItem.left + m_ptCenter.x;
-		LONG CenterY = m_rcItem.top + m_ptCenter.y;
-		LONG nXCoord = CenterX - ptMove.x;
-		LONG nYCoord = CenterY - ptMove.y;
-		ULONG Length = (nXCoord * nXCoord) + (nYCoord * nYCoord);
-		REAL ptRadius = sqrt(REAL(Length));
-		REAL sinf = (REAL)abs(nYCoord) / ptRadius;
-		REAL fSlope = asinf(sinf);
-		fAngle = fSlope * 180 / PI;
+		float fAngle = 0.0;
+		LONG nXCoord = ptCenter.x - ptMove.x;
+		LONG nYCoord = ptCenter.y - ptMove.y;
+		float ptRadius = sqrt(float((nXCoord * nXCoord) + (nYCoord * nYCoord))); //两点距离
+		ulDistance = (ULONG)ptRadius;
+		float sinf = (float)abs(nYCoord) / ptRadius;
+		float fSlope = asinf(sinf); 
+		fAngle = fSlope * 180 / PI;//圆心对Y方向的角度
+
+		//取以Y轴正方向开始转动的角度
+		//笛卡尔坐标系(Cartesian coordinates)
 		//第一象限90-
 		if (nXCoord <= 0 && nYCoord >= 0)
 		{
@@ -270,24 +215,28 @@ namespace DirectUI
 		{
 			fAngle = 270.0 + fAngle;
 		}
+		fRoll = fAngle;
+		return fAngle;
+	}
 
-		m_fAngle = fAngle;
-		//DUI__Trace(_T("%f"), m_fAngle);
+	void CSpinButtonUI::AdjustAngle(POINT & ptMove)
+	{
+		REAL fAngle = 0.0;
+		POINT ptCenter = {m_rcItem.left + m_ptCenter.x, m_rcItem.top + m_ptCenter.y};
+		ULONG Length = 0;
+		fAngle = m_gpOutRing.angle.CalculateAngle(m_gpOutRing.fAngle, ptMove,ptCenter,Length,0);
+		DUI__Trace(_T("%f"), fAngle);
 		if (Length <= m_nRadius * m_nRadius)
 		{
 			m_ptCurrent.x = ptMove.x;
 			m_ptCurrent.y = ptMove.y;
-			m_nStickStep = (unsigned int)((float)m_nStep*(ptRadius/m_nRadius));
 		}
 		else
 		{
 			fAngle -= 90.0;
-			m_ptCurrent.x = CenterX + LONG(m_nRadius*cos(fAngle*PI / 180));
-			m_ptCurrent.y = CenterY + LONG(m_nRadius*sin(fAngle*PI / 180));
-			m_nStickStep = m_nStep -1;
+			m_ptCurrent.x = ptCenter.x + LONG(m_nRadius*cos(fAngle*PI / 180));
+			m_ptCurrent.y = ptCenter.y + LONG(m_nRadius*sin(fAngle*PI / 180));
 		}
-		m_gpCap.fAngle = m_fAngle;
-		//DUI__Trace(_T("%d"), m_nStickStep);
 	}
 
 	void CSpinButtonUI::DoPaint(HDC hDC, const RECT& rcPaint)
@@ -538,4 +487,150 @@ namespace DirectUI
 
 	}
 
-}
+
+
+	LPCTSTR CSpinButtonUI::GetCapNormalImage() const
+	{
+		return m_strCapNormalImg;
+	}
+
+	void CSpinButtonUI::SetCapNormalImage(LPCTSTR pStrImage)
+	{
+		m_strCapNormalImg = pStrImage;
+	}
+
+	LPCTSTR CSpinButtonUI::GetCapHotImage() const
+	{
+		return m_strCapHotImg;
+	}
+
+	void CSpinButtonUI::SetCapHotImage(LPCTSTR pStrImage)
+	{
+		m_strCapHotImg = pStrImage;
+	}
+
+	LPCTSTR CSpinButtonUI::GetCapPushImage() const
+	{
+		return m_strCapPushImg;
+	}
+
+	void CSpinButtonUI::SetCapPushImage(LPCTSTR pStrImage)
+	{
+		m_strCapPushImg = pStrImage;
+	}
+
+	LPCTSTR CSpinButtonUI::GetCapDisableImage() const
+	{
+		return m_strCapDisableImg;
+	}
+
+	void CSpinButtonUI::SetCapDisableImage(LPCTSTR pStrImage)
+	{
+		m_strCapDisableImg = pStrImage;
+	}
+
+	LPCTSTR CSpinButtonUI::GetRingNormalImage() const
+	{
+		return m_strRingNormalImg;
+	}
+
+	void CSpinButtonUI::SetRingNormalImage(LPCTSTR pStrImage)
+	{
+		m_strRingNormalImg = pStrImage;
+	}
+
+	LPCTSTR CSpinButtonUI::GetRingHotImage() const
+	{
+		return m_strRingHotImg;
+	}
+
+	void CSpinButtonUI::SetRingHotImage(LPCTSTR pStrImage)
+	{
+		m_strRingHotImg = pStrImage;
+	}
+
+	LPCTSTR CSpinButtonUI::GetRingPushImage() const
+	{
+		return m_strRingPushImg;
+	}
+
+	void CSpinButtonUI::SetRingpPushImage(LPCTSTR pStrImage)
+	{
+		m_strRingPushImg = pStrImage;
+	}
+
+	LPCTSTR CSpinButtonUI::GetRingDisableImage() const
+	{
+		return m_strRingDisableImg;
+	}
+
+	void CSpinButtonUI::SetRingDisableImage(LPCTSTR pStrImage)
+	{
+		m_strRingDisableImg = pStrImage;
+	}
+
+	LPCTSTR CSpinButtonUI::GetCalibrationFrontImage() const
+	{
+		return m_strCalibrationFrontImg;
+	}
+
+	void CSpinButtonUI::SetCalibrationFrontImage(LPCTSTR pStrImage)
+	{
+		m_strCalibrationFrontImg = pStrImage;
+	}
+
+	LPCTSTR CSpinButtonUI::GetCalibrationBackImage() const
+	{
+		return m_strCalibrationBackImg;
+	}
+
+	void CSpinButtonUI::SetCalibrationBackImage(LPCTSTR pStrImage)
+	{
+		m_strCalibrationBackImg = pStrImage;
+	}
+
+	LPCTSTR CSpinButtonUI::GetFocusImage() const
+	{
+		return m_strFocusImg;
+	}
+
+	void CSpinButtonUI::SetFocusImage(LPCTSTR pStrImage)
+	{
+		m_strFocusImg = pStrImage;
+	}
+
+	LPCTSTR CSpinButtonUI::GetFrontImage() const
+	{
+		return m_strFrontImg;
+	}
+
+	void CSpinButtonUI::SetFrontImage(LPCTSTR pStrImage)
+	{
+		m_strFrontImg = pStrImage;
+	}
+
+	int	CSpinButtonUI::GetRadius() const
+	{
+		return m_nRadius;
+	}
+
+	void CSpinButtonUI::SetRadius(LPCTSTR pStrRadius)
+	{
+		ASSERT(pStrRadius);
+		m_nRadius = _ttoi(pStrRadius);
+	}
+
+	POINT CSpinButtonUI::GetCenterPoint() const
+	{
+		return m_ptCenter;
+	}
+
+	void CSpinButtonUI::SetCenterPoint(LPCTSTR pStrPoint)
+	{
+		ASSERT(pStrPoint);
+		LPTSTR pstr = NULL;
+		m_ptCenter.x = _tcstol(pStrPoint, &pstr, 10);  ASSERT(pstr);    
+		m_ptCenter.y = _tcstol(pstr + 1, &pstr, 10);   ASSERT(pstr);   
+	}
+
+}/////namespace DirectUI
