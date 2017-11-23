@@ -12,7 +12,9 @@ namespace DirectUI
 		m_bFirstLayout(TRUE),
 		m_bLayeredWindow(FALSE),
 		m_nClipState(CLIP_NON-1),
-		m_bParentClip(FALSE)
+		m_bParentClip(FALSE),
+		m_bWndVisible(TRUE),
+		m_nWMOnMove(0)
 	{
 	}
 
@@ -64,7 +66,7 @@ namespace DirectUI
 	void CLayerControlUI::SetVisible(bool bVisible)
 	{
 		CControlUI::SetVisible(bVisible);
-		if(m_hWnd) ::ShowWindow(m_hWnd, bVisible); 
+		if(m_bWndVisible && m_hWnd) ShowWindow(bVisible,false);
 	}
 
 	void CLayerControlUI::SetPos(RECT rc)
@@ -90,6 +92,7 @@ namespace DirectUI
 		else if (_tcscmp(pstrName, _T("layered")) == 0) 
 			SetLayeredWnd(_tcscmp(pstrValue, _T("true")) == 0);
 		else if (_tcscmp(pstrName, _T("skinfile")) == 0) SetSkinFile(pstrValue);
+		else if (_tcscmp(pstrName, _T("wmonmove")) == 0) SetWMONMOVE(_ttoi(pstrValue));
 		else 
 			__super::SetAttribute(pstrName, pstrValue);
 	}
@@ -137,6 +140,11 @@ namespace DirectUI
 		m_bParentClip = b;
 	}
 
+	void CLayerControlUI::SetWMONMOVE(UINT wm_onmove)
+	{
+		m_nWMOnMove = wm_onmove;
+	}
+
 	//------------------------------CWindowUI--------------------------------
 
 	LPCTSTR CLayerControlUI::GetWindowClassName() const
@@ -167,6 +175,13 @@ namespace DirectUI
 			BOOL bHandled = FALSE;
 			LRESULT lres = OnPaint(wParam, lParam, bHandled);
 			if(bHandled) return lres;
+		}
+		else if(m_nWMOnMove && uMsg == m_nWMOnMove)
+		{
+			POINT pt = { m_rcItem.left, m_rcItem.top};
+			::ClientToScreen(m_pManager->GetPaintWindow(),&pt);
+			::SetWindowPos(m_hWnd, NULL, pt.x, pt.y , 0, 0, SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSIZE);
+			return 0;
 		}
 		return __super::HandleMessage(uMsg, wParam, lParam);
 	}
@@ -231,12 +246,6 @@ namespace DirectUI
 		m_PaintManager.AddPreMessageFilter(this);
 
 		CDialogBuilder builder;
-		if (!GetSkinFolder().IsEmpty())
-		{
-			CUIString strResourcePath = m_PaintManager.GetInstancePath();
-			strResourcePath += GetSkinFolder().GetData();
-			m_PaintManager.SetResourcePath(strResourcePath.GetData());
-		}
 
 		switch(GetResourceType())
 		{
@@ -282,15 +291,10 @@ namespace DirectUI
 		else
 			pRoot = builder.Create(GetSkinFile().GetData(), (UINT)0, this, &m_PaintManager);
 
-		ASSERT(pRoot);
 		if (pRoot == NULL)
 		{
-			CUIString strXml = GetSkinFile().GetData();
-			CUIString str;
-			str.Format(_T("Skin %s error"), strXml.GetData());			
-			MessageBox(NULL,str, _T("ÌבÊ¾"), MB_OK|MB_ICONERROR);
-			ExitProcess(1);
-			return 0;
+			pRoot = new CContainerUI;
+			pRoot->SetBkColor(0xffffffff);
 		}
 
 		m_PaintManager.AttachDialog(pRoot);
@@ -450,13 +454,20 @@ namespace DirectUI
 	{
 		if(!m_hWnd) return;
 		auto pParent = m_pParent;
+		CContainerUI* pContainer = NULL;
 		int nClipState = CLIP_NON;
 		CRect rcItem(m_rcItem),rcAnd, rcParent;
 		while(pParent)
 		{
 			rcParent = pParent->GetPos();
-			if(m_pParent->GetInterface(DUI_CTR_CONTAINER)){
-				rcParent.Deflate( &((CContainerUI*)m_pParent)->GetInset());
+			if(pContainer = static_cast<CContainerUI*>(pParent->GetInterface(DUI_CTR_CONTAINER))){
+				CRect rcScrollBarPadding;
+				rcParent.Deflate( &pContainer->GetInset());
+				auto pScrollBar = pContainer->GetHorizontalScrollBar();
+				if(pScrollBar) rcScrollBarPadding.bottom = pScrollBar->GetHeight();
+				pScrollBar = pContainer->GetVerticalScrollBar();
+				if(pScrollBar) rcScrollBarPadding.right = pScrollBar->GetWidth();
+				rcParent.Deflate(&rcScrollBarPadding);
 			}
 			::IntersectRect(&rcAnd,&rcParent,&rcItem);
 			if(rcAnd.IsNull())
@@ -481,7 +492,7 @@ namespace DirectUI
 			return ;
 		}
 
-	//	DUI__Trace(_T("nClipState %d"), nClipState);
+		//DUI__Trace(_T("nClipState %d"), nClipState);
 
 		
 		if(CLIP_HALF == nClipState)
@@ -493,13 +504,25 @@ namespace DirectUI
 			//DUI__Trace(_T("rcItem {%d,%d, %d, %d}"), rcItem.left,rcItem.top, rcItem.right, rcItem.bottom);
 			HRGN hRgn = ::CreateRectRgn(rcAnd.left,rcAnd.top, rcAnd.right, rcAnd.bottom);
 			::SetWindowRgn(m_hWnd, hRgn, TRUE);
+			if(!m_bWndVisible)
+			{
+				m_bWndVisible= TRUE;
+				ShowWindow(true,false);
+			}
 		}
 		else if(CLIP_NON == nClipState)
 		{
 			::SetWindowRgn(m_hWnd, NULL, TRUE);
+			if(!m_bWndVisible)
+			{
+				m_bWndVisible= TRUE;
+				ShowWindow(true,false);
+			}
 		}
 		else
 		{
+			m_bWndVisible = FALSE;
+			ShowWindow(false,false);
 			HRGN hRgn =  ::CreateRectRgn(0, 0, 0, 0);
 			::SetWindowRgn(m_hWnd, hRgn, TRUE);
 		}

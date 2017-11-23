@@ -2,9 +2,9 @@
 #define __DOCKPANEL_H__
 
 #pragma once
-#include "..\directui\core\uicontainer.h"
-#include "..\directui\layout\UIHorizontalLayout.h"
-#include "..\DirectUI\utils\UIBaseWnd.h"
+//#include "directui\core\uicontainer.h"
+//#include "directui\layout\UIHorizontalLayout.h"
+//#include "DirectUI\utils\UIBaseWnd.h"
 
 #define  DUI_CTR_DOCKPANEL                       (_T("DockPanel"))
 #define  DUI_CTR_DOCKER                       (_T("Docker"))

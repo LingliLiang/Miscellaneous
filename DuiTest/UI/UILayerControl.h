@@ -28,6 +28,10 @@ namespace DirectUI
 		void SetLayeredWnd(BOOL b);
 		void SetSkinFile(LPCTSTR pstrSkin);
 		void SetParentClip(BOOL b);
+
+		//当消息为wm_onmove时进行窗口跟随移动
+		//设置为0时不使用跟随移动
+		void SetWMONMOVE(UINT wm_onmove); 
 	private:
 		BOOL m_bHasParent;
 		CUIString m_strSkin;
@@ -64,6 +68,11 @@ namespace DirectUI
 		BOOL m_bLayeredWindow;
 		enum emClipState { CLIP_NON/*无裁剪*/,CLIP_HALF/*裁剪部分*/,CLIP_FULL/*全部裁剪*/};
 		UINT m_nClipState; //当前的裁剪状态,由滚动条导致的超出界面的状态
+		BOOL m_bWndVisible;
+
+		//需要为主窗口定义移动时通知子窗口的消息
+		//而本窗口会根据消息进行跟随移动
+		UINT m_nWMOnMove; 
 	};
 
 

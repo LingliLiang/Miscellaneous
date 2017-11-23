@@ -8,7 +8,9 @@ class CDuitestWnd : public CWindowUI
 {
 
 public:
-	CDuitestWnd():m_pEvent(nullptr){}
+	CDuitestWnd():m_pEvent(nullptr){
+		m_pEvent.reset(new CWndEventImpl(m_hWnd));
+	}
 	~CDuitestWnd(){}
 
 	LPCTSTR GetWindowClassName() const;
@@ -20,6 +22,7 @@ public:
 	virtual void OnClick(TNotifyUI& msg);
 	virtual LRESULT HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam);
 	virtual void Notify(TNotifyUI& msg);
+	virtual void InitWindow();
 
 	std::unique_ptr<IWndEvent> m_pEvent;
 };
@@ -35,7 +38,6 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 	::StrCat(pFileName,SKINFOLDER);
 	CPaintManagerUI::SetResourcePath(pFileName);
 	std::auto_ptr<CDuitestWnd> pWin(new CDuitestWnd);
-	pWin->m_pEvent.reset(new CWndEventImpl);
 	pWin->Create(NULL,_T("DuitestWnd"),UI_WNDSTYLE_FRAME,UI_WNDSTYLE_EX_FRAME);
 	pWin->CenterWindow();
 	pWin->ShowWindow();
@@ -69,6 +71,14 @@ CControlUI* CDuitestWnd::CreateControl(LPCTSTR strControl)
 		return m_pEvent->CreateControl(strControl);
 	}
 	return nullptr;
+}
+
+void CDuitestWnd::InitWindow()
+{
+	if(m_pEvent)
+	{
+		m_pEvent->InitWindow();
+	}
 }
 
 void CDuitestWnd::Notify(TNotifyUI& msg)

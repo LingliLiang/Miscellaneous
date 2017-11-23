@@ -23,7 +23,7 @@
 	#include <vld.h>
 #endif
 
-#include <directui\UIlib.h>
+#include "directui\UIlib.h"
 using namespace DirectUI;
 
 
@@ -36,3 +36,4 @@ using namespace DirectUI;
 #define SAFE_DELETE(x) if (x){delete x; x=NULL;}
 #endif
 
+#define WM_MOVINGNOTIFY WM_USER+0x8000

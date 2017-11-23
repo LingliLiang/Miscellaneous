@@ -97,7 +97,7 @@
 	</HorizontalLayout>
 	<TileLayout parent="Container" notifies="setfocus killfocus timer menu windowinit(root)">
 		<Attribute name="columns" default="1" type="INT" comment="列数,如(4)"/>
-		<Attribute name="itemsize" default="0,0" type="SIZE" comment="子项固定大小，如(128,128)"/>
+		<Attribute name="itemsize" default="0,0" type="SIZE" comment="子项固定大小,如(128,128),控件也需要设置其大小 "/>
 	</TileLayout>
   <TabLayout parent="Container" notifies="setfocus killfocus timer menu tabselect windowinit(root)">
     <Attribute name="selectedid" default="0" type="INT" comment="默认选中的页面id,如(0)"/>
