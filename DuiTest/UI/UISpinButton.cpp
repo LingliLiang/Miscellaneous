@@ -83,7 +83,7 @@ namespace DirectUI
 		{
 			if ((m_uButtonState & UISTATE_CAPTURED) != 0) 
 			{
-				AdjustAngle(tevent.ptMouse);
+				AdjustAngle(tevent.ptMouse, m_gpCap, FALSE);
 				Invalidate();
 			}
 			return;
@@ -94,7 +94,10 @@ namespace DirectUI
 			if (IsEnabled())
 			{
 				if (::PtInRect(&m_rcItem, tevent.ptMouse)) 
+				{
 					m_uButtonState |= UISTATE_CAPTURED;
+					AdjustAngle(tevent.ptMouse, m_gpCap, TRUE);
+				}
 			}
 			return;
 		}
@@ -176,19 +179,25 @@ namespace DirectUI
 		else CControlUI::SetAttribute(pstrName, pstrValue);		
 	}
 
-	float CSpinButtonUI::CAngle::CalculateAngle(
-		float& fRoll, /*转动过的角度, + 顺时针 -逆时针, 表示转过的圈数(360为一圈)*/
-		//float& fOffset, 
+	CAngleRecord::CAngleRecord()
+		:m_nQuadrant(0),m_b4to1(FALSE),m_b1to4(FALSE),m_fOffsetAngle(0),
+		m_bClockwise(FALSE),m_fLastAngle(0),m_fFirstAngle(0)
+	{
+	
+	}
+
+	float CAngleRecord::CalculateAngle(
+		float* pfRoll, /*转动过的角度, + 顺时针 -逆时针, 表示转过的圈数(360为一圈)*/
 		const POINT ptMove, /*当前可移动点的位置*/
 		const POINT ptCenter, /*圆心点的位置*/
-		ULONG& ulDistance, /*可移动点与圆心点的距离*/
-		BOOL bAddCre)
+		ULONG* pulDistance, /*可移动点与圆心点的距离*/
+		BOOL bFirst)
 	{
 		float fAngle = 0.0;
 		LONG nXCoord = ptCenter.x - ptMove.x;
 		LONG nYCoord = ptCenter.y - ptMove.y;
 		float ptRadius = sqrt(float((nXCoord * nXCoord) + (nYCoord * nYCoord))); //两点距离
-		ulDistance = (ULONG)ptRadius;
+		if(pulDistance) *pulDistance = (ULONG)ptRadius;
 		float sinf = (float)abs(nYCoord) / ptRadius;
 		float fSlope = asinf(sinf); 
 		fAngle = fSlope * 180 / PI;//圆心对Y方向的角度
@@ -198,34 +207,64 @@ namespace DirectUI
 		//第一象限90-
 		if (nXCoord <= 0 && nYCoord >= 0)
 		{
+			if(m_nQuadrant == 4) m_b4to1 = TRUE;
 			fAngle = 90.0 - fAngle;
+			m_nQuadrant = 1;
 		}
 		//第二象限90+
 		else if (nXCoord <= 0 && nYCoord <= 0)
 		{
 			fAngle = 90.0 + fAngle;
+			m_nQuadrant = 2;
 		}
 		//第三象限270-
 		else if (nXCoord >= 0 && nYCoord <= 0)
 		{
 			fAngle = 270.0 - fAngle;
+			m_nQuadrant = 3;
 		}
 		//第四象限270+
 		else if (nXCoord >= 0 && nYCoord >= 0)
 		{
+			if(m_nQuadrant == 1) m_b1to4 = TRUE;
 			fAngle = 270.0 + fAngle;
+			m_nQuadrant = 4;
 		}
-		fRoll = fAngle;
+
+		if(bFirst)
+		{
+			m_fFirstAngle = fAngle;
+			m_fLastAngle = fAngle;
+			m_bClockwise = FALSE;
+			m_fOffsetAngle = 0;
+			//DUI__Trace(_T("FirstAngle----     %f"), m_fFirstAngle);
+		}
+
+		if(m_b1to4) m_fOffsetAngle -= 360.0;
+		if(m_b4to1) m_fOffsetAngle += 360.0;
+
+		float fLastAngle = m_fLastAngle; //fmodf(m_fLastAngle, 360.0);
+		float fVar = fAngle + m_fOffsetAngle  - fLastAngle; //旋转角度
+		m_bClockwise = fVar > 0; //旋转方向
+
+		m_fLastAngle += fVar;
+
+		//DUI__Trace(_T("NewLastAngle----   %f  OldLastAngle---- %f  fVar----  %f"), m_fLastAngle, fLastAngle, fVar);
+		if(pfRoll) *pfRoll = *pfRoll + fVar; //实际改变增量值
+		m_b4to1 = m_b1to4 = FALSE;
 		return fAngle;
 	}
 
-	void CSpinButtonUI::AdjustAngle(POINT & ptMove)
+	void CSpinButtonUI::AdjustAngle(POINT & ptMove, _tagGearProp& gp, BOOL isbegin)
 	{
 		REAL fAngle = 0.0;
 		POINT ptCenter = {m_rcItem.left + m_ptCenter.x, m_rcItem.top + m_ptCenter.y};
 		ULONG Length = 0;
-		fAngle = m_gpOutRing.angle.CalculateAngle(m_gpOutRing.fAngle, ptMove,ptCenter,Length,0);
-		DUI__Trace(_T("%f"), fAngle);
+		if(isbegin)
+			fAngle = gp.angle.CalculateAngle(NULL, ptMove, ptCenter, &Length, isbegin);
+		else
+			fAngle = gp.angle.CalculateAngle(&gp.fAngle, ptMove, ptCenter, &Length, isbegin);
+		DUI__Trace(_T("GearPropAngle----     %f"), gp.fAngle);
 		if (Length <= m_nRadius * m_nRadius)
 		{
 			m_ptCurrent.x = ptMove.x;

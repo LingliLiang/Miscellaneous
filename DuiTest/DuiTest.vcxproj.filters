@@ -70,9 +70,6 @@
     <ClCompile Include="Utils\AudioManager.cpp">
       <Filter>Utils</Filter>
     </ClCompile>
-    <ClCompile Include="Utils\AudioPlaybackCaputre.cpp">
-      <Filter>Utils</Filter>
-    </ClCompile>
     <ClCompile Include="Utils\DlgUtils.cpp">
       <Filter>Utils</Filter>
     </ClCompile>
@@ -95,6 +92,9 @@
       <Filter>Utils</Filter>
     </ClCompile>
     <ClCompile Include="Utils\TimerThread.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\AudioPlaybackCapture.cpp">
       <Filter>Utils</Filter>
     </ClCompile>
   </ItemGroup>
@@ -159,9 +159,6 @@
     <ClInclude Include="Utils\AudioManager.h">
       <Filter>Utils</Filter>
     </ClInclude>
-    <ClInclude Include="Utils\AudioPlaybackCaputre.h">
-      <Filter>Utils</Filter>
-    </ClInclude>
     <ClInclude Include="Utils\CMessageWnd.hpp">
       <Filter>Utils</Filter>
     </ClInclude>
@@ -196,6 +193,9 @@
       <Filter>Utils</Filter>
     </ClInclude>
     <ClInclude Include="Utils\TimerThread.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\AudioPlaybackCapture.h">
       <Filter>Utils</Filter>
     </ClInclude>
   </ItemGroup>

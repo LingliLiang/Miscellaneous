@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "AudioPlaybackCaputre.h"
+#include "AudioPlaybackCapture.h"
 #include <process.h>
 
 #include <mmdeviceapi.h>
@@ -10,6 +10,31 @@
 
 namespace AudioLoopBack
 {
+
+#define WM_STATUS		WM_USER+1000
+#define WM_WAVEFORMAT			WM_USER+1001
+#define WM_WAVEDATA			WM_USER+1002
+
+	namespace {
+
+		void NotifyWaveFormat(HWND hWnd, PWAVEFORMATEX* ppwfx)
+		{
+			::SendMessage(hWnd, WM_WAVEFORMAT, 0, (LPARAM)(*ppwfx));
+		}
+
+		void NotifyWaveData(HWND hWnd, LPBYTE pData, int nDataLen)
+		{
+			::SendMessage(hWnd, WM_WAVEDATA, (WPARAM)pData, nDataLen);
+		}
+
+		void NotifyStatus(HWND hWnd, DWORD dwStatus, LPVOID UserData)
+		{
+			::SendMessage(hWnd, WM_STATUS, (WPARAM)dwStatus, (LPARAM)UserData);
+		}
+
+	}// unname namespace
+
+
 
 	class CCaptureImpl
 	{
@@ -36,7 +61,6 @@ namespace AudioLoopBack
 	private:
 		static unsigned int WINAPI ThreadCaptureProc(LPVOID param);
 		unsigned int AudioCaptureProc();
-		HWND m_hWndMessage;
 		HANDLE m_hEventStarted;
 		HANDLE m_hEventStop;
 		HANDLE m_hThreadCapture;
@@ -44,6 +68,12 @@ namespace AudioLoopBack
 		BOOL m_bInited;
 
 		IAudioCaptureEvent* m_pEventHandler;
+
+		///////
+		HANDLE m_hThreadWnd;
+		HWND m_hMsgWnd;
+		static unsigned int WINAPI ThreadWndProc(LPVOID param);
+		static LRESULT WINAPI WindowProc(HWND hWnd,UINT uMsg,WPARAM wParam,LPARAM lParam);
 
 	};
 
@@ -108,6 +138,9 @@ namespace AudioLoopBack
 		m_hThreadCapture = (HANDLE)_beginthreadex(NULL, 0, &ThreadCaptureProc, this, 0, NULL);
 		if(m_hThreadCapture == NULL) return FALSE;
 
+		m_hThreadWnd = (HANDLE)_beginthreadex(NULL, 0, &ThreadWndProc, this, 0, NULL);
+		if(m_hThreadWnd == NULL) return FALSE;
+
 		HANDLE arWaits[2] = {m_hEventStarted, m_hThreadCapture};
 		DWORD dwWaitResult = WaitForMultipleObjects(sizeof(arWaits)/sizeof(arWaits[0]), arWaits, FALSE, INFINITE);
 		if(dwWaitResult != WAIT_OBJECT_0)
@@ -128,6 +161,13 @@ namespace AudioLoopBack
 		{
 			SetEvent(m_hEventStop);
 			OnThreadEnd();
+		}
+		if(m_hThreadWnd && m_hMsgWnd)
+		{
+			::SendMessage(m_hMsgWnd,WM_CLOSE,0,0);
+			::CloseHandle(m_hThreadWnd);
+			m_hMsgWnd = NULL;
+			m_hThreadWnd = NULL;
 		}
 	}
 
@@ -223,7 +263,8 @@ namespace AudioLoopBack
 
 			SetEvent(m_hEventStarted);
 
-			//NotifyWaveFormat(hWndMessage, pwfx);
+			NotifyWaveFormat(m_hMsgWnd, &pwfx);
+
 			hr = pAudioClient->Initialize(AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_LOOPBACK, 0, 0, pwfx, 0);
 			if(FAILED(hr)) break;
 
@@ -243,7 +284,7 @@ namespace AudioLoopBack
 			hr = pAudioClient->Start();
 			if(FAILED(hr)) break;
 
-			//NotifyStatus(hWndMessage, CAPTURE_START, lTimeBetweenFires);
+			NotifyStatus(m_hMsgWnd, CAPTURE_START, (LPVOID)lTimeBetweenFires);
 			bStarted = TRUE;
 
 			HANDLE waitArray[2] = { m_hEventStop, hTimerWakeUp };
@@ -259,14 +300,14 @@ namespace AudioLoopBack
 
 				if (WAIT_OBJECT_0 + 1 != dwWaitResult)
 				{
-					//NotifyStatus(hWndMessage, CAPTURE_ERROR);
+					NotifyStatus(m_hMsgWnd, CAPTURE_ERROR, 0);
 					break;
 				}
 
 				hr = pAudioCaptureClient->GetNextPacketSize(&nNextPacketSize);
 				if(FAILED(hr))
 				{
-					//NotifyStatus(hWndMessage, CAPTURE_ERROR);
+					NotifyStatus(m_hMsgWnd, CAPTURE_ERROR, 0);
 					break;
 				}
 
@@ -281,13 +322,13 @@ namespace AudioLoopBack
 					);
 				if(FAILED(hr))
 				{
-					//NotifyStatus(hWndMessage, CAPTURE_ERROR);
+					NotifyStatus(m_hMsgWnd, CAPTURE_ERROR, 0);
 					break;
 				}
 
 				if (0 != nNumFramesToRead)
 				{
-					//NotifyData(hWndMessage, pData, nNumFramesToRead * pwfx->nBlockAlign);
+					NotifyWaveData(m_hMsgWnd, pData, nNumFramesToRead * pwfx->nBlockAlign);
 				}
 
 				pAudioCaptureClient->ReleaseBuffer(nNumFramesToRead);
@@ -325,7 +366,7 @@ namespace AudioLoopBack
 			if(bStarted)
 			{
 				pAudioClient->Stop();
-				//NotifyStatus(hWndMessage, CAPTURE_STOP);
+				NotifyStatus(m_hMsgWnd, CAPTURE_STOP, 0);
 			}
 
 			pAudioClient->Release();
@@ -350,53 +391,145 @@ namespace AudioLoopBack
 		return pDevice;
 	}
 
+	///---------------------------------------------------------------------
+
+	unsigned int  WINAPI CCaptureImpl::ThreadWndProc(LPVOID param)
+	{
+		CCaptureImpl* pThis = static_cast<CCaptureImpl*>(param);
+		TCHAR szClassName[] = _T("AudioLoopBack-CCaptureImplWindow");
+		WNDCLASSEX wndClass;
+		wndClass.cbSize = sizeof(wndClass);
+		wndClass.style = CS_HREDRAW | CS_VREDRAW;
+		wndClass.lpfnWndProc = WindowProc;
+		wndClass.cbClsExtra = 0;
+		wndClass.cbWndExtra = 0;
+		wndClass.hInstance = GetModuleHandle(0);
+		wndClass.hIcon = LoadIcon(NULL,IDI_APPLICATION);
+		wndClass.hCursor = LoadCursor(NULL,IDC_ARROW);
+		wndClass.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);
+		wndClass.lpszMenuName = NULL;
+		wndClass.lpszClassName = szClassName;
+		wndClass.hIconSm = NULL;
+
+		ATOM atom = RegisterClassEx(&wndClass);
+		if(0 == atom)
+		{
+			if(GetLastError() != ERROR_CLASS_ALREADY_EXISTS)
+			{
+				return 0;
+			}
+		}
+		pThis->m_hMsgWnd = CreateWindowEx(0,szClassName,_T(""),WS_OVERLAPPEDWINDOW,CW_USEDEFAULT,CW_USEDEFAULT,
+			CW_USEDEFAULT,CW_USEDEFAULT,HWND_MESSAGE,NULL,NULL,pThis);
+		if(pThis->m_hMsgWnd == NULL)
+		{
+			return 0;
+		}
+		MSG msg;
+		while(GetMessage(&msg,NULL,0,0))
+		{
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
+		return 0;
+	}
+
+	LRESULT WINAPI CCaptureImpl::WindowProc(HWND hWnd,UINT uMsg,WPARAM wParam,LPARAM lParam)
+	{
+		CCaptureImpl* pThis = NULL;
+		pThis = reinterpret_cast<CCaptureImpl*>(::GetWindowLongPtr(hWnd, GWLP_USERDATA));
+		switch(uMsg)
+		{
+		case WM_DESTROY:
+			{
+				if(pThis){
+					::SetWindowLongPtr(pThis->m_hMsgWnd, GWLP_USERDATA, 0L);
+				}
+				::PostThreadMessage(::GetCurrentThreadId(),WM_QUIT,0,0);
+			}
+		case WM_CREATE:
+			{
+				LPCREATESTRUCT lpcs = reinterpret_cast<LPCREATESTRUCT>(lParam);
+				if(lpcs)
+				{
+					pThis = static_cast<CCaptureImpl*>(lpcs->lpCreateParams);
+					::SetWindowLongPtr(hWnd, GWLP_USERDATA, reinterpret_cast<LPARAM>(pThis));
+				}
+			}
+		}
+		if(pThis)
+		{
+			auto & pEventHandler = pThis->m_pEventHandler;
+			if(pEventHandler)
+			{
+				if( uMsg == WM_STATUS)
+				{
+					if(wParam == CAPTURE_START)
+						pEventHandler->OnCaptureStart((DWORD)lParam);
+					else if(wParam == CAPTURE_STOP)
+						pEventHandler->OnCaptureStop();
+					else
+						pEventHandler->OnCaptureStatus((DWORD)wParam, (LPVOID)lParam);
+				}
+				else if(uMsg == WM_WAVEDATA)
+				{
+					pEventHandler->OnCaptureData(reinterpret_cast<LPBYTE>(wParam), (int)lParam);
+				}
+				else if(uMsg == WM_WAVEFORMAT)
+				{
+					pEventHandler->OnAdjustCaptureFormat(reinterpret_cast<PWAVEFORMATEX>(lParam));
+				}
+			}
+		}
+		return DefWindowProc(hWnd,uMsg,wParam,lParam);
+	}
 
 	///---------------------------------------------------------------------
 
-	CAudioPlaybackCaputre::CAudioPlaybackCaputre(void)
+	CAudioPlaybackCapture::CAudioPlaybackCapture(void)
 		:m_pImpl(new CCaptureImpl)
 	{
 
 	}
 
-	CAudioPlaybackCaputre::~CAudioPlaybackCaputre(void)
+	CAudioPlaybackCapture::~CAudioPlaybackCapture(void)
 	{
 	}
 
-	BOOL CAudioPlaybackCaputre::Initialize(IAudioCaptureEvent* pHandler)
+	BOOL CAudioPlaybackCapture::Initialize(IAudioCaptureEvent* pHandler)
 	{
 		if(m_pImpl)
 			return m_pImpl->Initialize(pHandler);
 		return FALSE;
 	}
 
-	void CAudioPlaybackCaputre::UnInit()
+	void CAudioPlaybackCapture::UnInit()
 	{
 		if(m_pImpl)
 			m_pImpl->UnInit();
 	}
 
-	BOOL CAudioPlaybackCaputre::Start()
+	BOOL CAudioPlaybackCapture::Start()
 	{
 		if(m_pImpl)
 			return m_pImpl->Start();
 		return FALSE;
 	}
 
-	void CAudioPlaybackCaputre::Stop()
+	void CAudioPlaybackCapture::Stop()
 	{
 		if(m_pImpl)
 			m_pImpl->Stop();
 	}
 
-	BOOL CAudioPlaybackCaputre::IsInited() const
+	BOOL CAudioPlaybackCapture::IsInited() const
 	{
 		if(m_pImpl)
 			return m_pImpl->IsInited();
 		return FALSE;
 	}
 
-	BOOL CAudioPlaybackCaputre::IsCapturing() const
+	BOOL CAudioPlaybackCapture::IsCapturing() const
 	{
 		if(m_pImpl)
 			return m_pImpl->IsCapturing();

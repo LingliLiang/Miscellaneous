@@ -6,6 +6,25 @@
 
 namespace DirectUI
 {
+	class CAngleRecord {
+	public:
+		CAngleRecord();
+		float CalculateAngle(
+			float* pfRoll,
+			const POINT ptMove,
+			const POINT ptCenter,
+			ULONG* pulDistance,
+			BOOL bFirst);
+	private:
+		int m_nQuadrant;
+		BOOL m_b4to1;//第四象限到第一象限的移动
+		BOOL m_b1to4; //第一象限到第四象限的移动
+		float m_fOffsetAngle; //当前计算的角度矫正值
+		BOOL m_bClockwise; //移动的趋势,是否顺时钟
+		float m_fLastAngle; //记录最后一次更新的角度
+		float m_fFirstAngle; //记录第一次计算的角度
+	};
+
 	class /*DirectUI_API*/ CSpinButtonUI : public CControlUI
 	{
 	public:
@@ -55,28 +74,11 @@ namespace DirectUI
 		void SetAttribute(LPCTSTR pstrName, LPCTSTR pstrValue);
 		SIZE EstimateSize(SIZE szAvailable);
 
-		void AdjustAngle(POINT &ptMove);
 
 		virtual void DoPaint(HDC hDC, const RECT& rcPaint);
 		virtual void PaintStatusImage(HDC hDC);
 		virtual void PaintText(HDC hDC);
 	protected:
-		RECT GetAnalogStickImageRect(unsigned int step);
-		void GetImageProp(const CUIString& strImg,
-			__out CUIString* pstrFile,
-			__out Gdiplus::Rect* prcSrc,
-			__out Gdiplus::Rect* prcDest);
-		class CAngle {
-		public:
-			float CalculateAngle(
-				float& fRoll,
-				//float& fOffset, 
-				const POINT ptMove,
-				const POINT ptCenter,
-				ULONG& ulDistance,
-				BOOL bAddCre);
-		private:
-		};
 		struct _tagGearProp
 		{
 			float fAngle;
@@ -85,8 +87,16 @@ namespace DirectUI
 			unsigned int nIterRadius;
 			POINT ptCenter;
 			HRGN hRgn;
-			CAngle angle;
+			CAngleRecord angle;
 		};
+
+		RECT GetAnalogStickImageRect(unsigned int step);
+		void GetImageProp(const CUIString& strImg,
+			__out CUIString* pstrFile,
+			__out Gdiplus::Rect* prcSrc,
+			__out Gdiplus::Rect* prcDest);
+		void AdjustAngle(POINT &ptMove, _tagGearProp& gp, BOOL isbegin);
+
 		unsigned int m_nRadius;
 		unsigned int m_nIterRadius;
 		float m_fAngle;

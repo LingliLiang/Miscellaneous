@@ -105,13 +105,14 @@
     <ClCompile Include="UI\UISliderControl.cpp" />
     <ClCompile Include="UI\UISpinButton.cpp" />
     <ClCompile Include="Utils\AudioManager.cpp" />
-    <ClCompile Include="Utils\AudioPlaybackCaputre.cpp" />
+    <ClCompile Include="Utils\AudioPlaybackCapture.cpp" />
     <ClCompile Include="Utils\DlgUtils.cpp" />
     <ClCompile Include="Utils\DropFiles.cpp" />
     <ClCompile Include="Utils\EventTrigger.cpp" />
     <ClCompile Include="Utils\FontLoader.cpp" />
     <ClCompile Include="Utils\HotKeyManager.cpp" />
     <ClCompile Include="Utils\NetworkCardInfo.cpp" />
+    <ClCompile Include="Utils\TimerThread.cpp" />
     <ClCompile Include="Utils\UIFontLoader.cpp" />
     <ClCompile Include="WndEventImpl.cpp" />
   </ItemGroup>
@@ -136,7 +137,7 @@
     <ClInclude Include="UI\UISliderControl.h" />
     <ClInclude Include="UI\UISpinButton.h" />
     <ClInclude Include="Utils\AudioManager.h" />
-    <ClInclude Include="Utils\AudioPlaybackCaputre.h" />
+    <ClInclude Include="Utils\AudioPlaybackCapture.h" />
     <ClInclude Include="Utils\CMessageWnd.hpp" />
     <ClInclude Include="Utils\DlgUtils.h" />
     <ClInclude Include="Utils\DropFiles.h" />
@@ -146,6 +147,7 @@
     <ClInclude Include="Utils\GlobalInstHost.hpp" />
     <ClInclude Include="Utils\HotKeyManager.h" />
     <ClInclude Include="Utils\NetworkCardInfo.h" />
+    <ClInclude Include="Utils\TimerThread.h" />
     <ClInclude Include="Utils\UIFontLoader.h" />
     <ClInclude Include="Utils\VKeyDefines.h" />
     <ClInclude Include="WndEventImpl.h" />
@@ -154,7 +156,9 @@
     <ClInclude Include="IWndEvent.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="skin\main_frame.xml" />
+    <None Include="skin\main_frame.xml">
+      <SubType>Designer</SubType>
+    </None>
     <None Include="Utils\UIFontLoader.txt" />
     <None Include="xml\dockarrt.xml" />
     <None Include="xml\属性列表.xml" />
