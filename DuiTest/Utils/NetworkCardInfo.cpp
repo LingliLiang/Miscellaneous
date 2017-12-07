@@ -15,8 +15,13 @@ CNetworkCardInfo::~CNetworkCardInfo(void)
 
 CNetworkCardInfo::pairIpsMac CNetworkCardInfo::GetCurIpMacInfo()
 {
-	if(m_vecCardInfo.size()<= m_currentIpIndex) m_currentIpIndex = 0;
-	return m_vecCardInfo[m_currentIpIndex];
+	pairIpsMac cur;
+	if(m_vecCardInfo.size())
+	{
+		if(m_vecCardInfo.size()<= m_currentIpIndex) m_currentIpIndex = 0;
+		cur = m_vecCardInfo[m_currentIpIndex];
+	}
+	return cur;
 }
 
 std::vector<CNetworkCardInfo::pairIpsMac> CNetworkCardInfo::GetIpsMacInfo()
@@ -56,7 +61,7 @@ void CNetworkCardInfo::GetAllNetworkCardInfo()
 		while (pIpAdapterInfo)
 		{
 			BasicStr outMac;
-			string tempMac;
+			std::string tempMac;
 			char buf[255] = { 0 };
 			pIpAdapterInfo->Description;MIB_IF_TYPE_ETHERNET;
 			pIpAdapterInfo->Type;
@@ -85,7 +90,7 @@ void CNetworkCardInfo::GetAllNetworkCardInfo()
 				pIpAddrString=pIpAddrString->Next;
 			} while (pIpAddrString);
 
-			string strGwIpAddr = pIpAdapterInfo->GatewayList.IpAddress.String;
+			std::string strGwIpAddr = pIpAdapterInfo->GatewayList.IpAddress.String;
 			if (strGwIpAddr.compare("0.0.0.0") != 0)
 			{
 				m_currentIpIndex = m_vecCardInfo.size();

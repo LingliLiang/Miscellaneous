@@ -8,21 +8,21 @@
   <VerticalLayout bkcolor="#FF242424" bordersize="2" bordercolor="#FF000000" >
     <HorizontalLayout height="30" bkcolor="#FF191919" >
       <Control />
-      <Button name="testbtn2" text="#"  height="30" width="30"  textcolor="#FFAAAAAA" hottextcolor="#FF808080" pushedtextcolor="#FF606060"/>
-      <Button name="testbtn1" text="%"  height="30" width="30"  textcolor="#FFAAAAAA" hottextcolor="#FF808080" pushedtextcolor="#FF606060"/>
-      <Button name="testbtn" text="@"  height="30" width="30"  textcolor="#FFAAAAAA" hottextcolor="#FF808080" pushedtextcolor="#FF606060"/>
-      <Button name="closebtn" text="×"  height="30" width="30" textcolor="#FFAAAAAA" hottextcolor="#FF808080" pushedtextcolor="#FF606060"/>
+      <Button name="testbtn2" text="#" tooltip="testbtn2" height="30" width="30"  textcolor="#FFAAAAAA" hottextcolor="#FF808080" pushedtextcolor="#FF606060"/>
+      <Button name="testbtn1" text="%" tooltip="testbtn1" height="30" width="30"  textcolor="#FFAAAAAA" hottextcolor="#FF808080" pushedtextcolor="#FF606060"/>
+      <Button name="testbtn" text="@" tooltip="testbtn" height="30" width="30"  textcolor="#FFAAAAAA" hottextcolor="#FF808080" pushedtextcolor="#FF606060"/>
+      <Button name="closebtn" text="×" tooltip="close" height="30" width="30" textcolor="#FFAAAAAA" hottextcolor="#FF808080" pushedtextcolor="#FF606060"/>
     </HorizontalLayout>
     
     <!--<Include source="layers.xml"/>-->
     
-    <SpinButton name="spinbtn" width="128" height="128" radius="100" centerpoint="64,64" bkimage="spinbk.png" 
+    <SpinButton name="spinbtn" width="128" height="128" radius="41" radiusringinner="41" radiusring="52"  centerpoint="64,64" bkimage="spinbk.png" 
                 capnormalimage="spincap.png" calfrontimage="spincab.png" ringnormalimage="spinring.png"/>
     
     <!--<AnalogStick name="AStick" width="200" height="200" radius="100" centerpoint="100,100" imgrowcol="1,2" imgrect="0,0,512,512" bkimage="bk_AnalogStick.png" analogstickimage="stickarray_1.png"/>-->
     
     <!--LayerControl test-->
-    <List name="" virtualwnd=""  width="200" height="200" header="hiden" vscrollbar="true" hscrollbar="false" 
+    <!--<List name="" virtualwnd=""  width="200" height="200" header="hiden" vscrollbar="true" hscrollbar="false" 
           itemalign="left" itemlinecolor="#FF313131"   itemfont="1"  itemsize="80,80"
           itemtextcolor="0xfff3f3f3"  itemhottextcolor="0xfff3f3f3" itemselectedtextcolor="#0xff4185be" itembkcolor="#FF393939"
           itemhotbkcolor="#FF404040" itemselectedbkcolor="#FF414141" itemendellipsis="true">
@@ -37,7 +37,7 @@
       <ListContainerElement width="80" height="80" />
       <ListContainerElement width="80" height="80" />
       <ListContainerElement width="80" height="80" />
-    </List>
+    </List>-->
   
   </VerticalLayout>
 </Window>

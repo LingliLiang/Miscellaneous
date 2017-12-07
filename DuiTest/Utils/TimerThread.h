@@ -24,14 +24,14 @@ private:
 	static DWORD WINAPI TimerThread(LPVOID lpParam);
 	static VOID WINAPI Callback(
 		//The value passed to the function using the lpArgToCompletionRoutine parameter of the SetWaitableTimer function.
-    __in_opt LPVOID lpArgToCompletionRoutine,
-	//The low-order portion of the UTC-based time at which the timer was signaled. This value corresponds to the dwLowDateTime
-	//member of the FILETIME structure. For more information about UTC-based time, see System Time.
-    __in     DWORD dwTimerLowValue,
-	//The high-order portion of the UTC-based time at which the timer was signaled. This value corresponds to the dwHighDateTime
-	//member of the FILETIME structure.
-    __in     DWORD dwTimerHighValue
-    );
+		__in_opt LPVOID lpArgToCompletionRoutine,
+		//The low-order portion of the UTC-based time at which the timer was signaled. This value corresponds to the dwLowDateTime
+		//member of the FILETIME structure. For more information about UTC-based time, see System Time.
+		__in     DWORD dwTimerLowValue,
+		//The high-order portion of the UTC-based time at which the timer was signaled. This value corresponds to the dwHighDateTime
+		//member of the FILETIME structure.
+		__in     DWORD dwTimerHighValue
+		);
 
 private:
 	HANDLE               m_hTimer;

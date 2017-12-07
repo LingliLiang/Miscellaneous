@@ -63,17 +63,19 @@ namespace DirectUI
 		LPCTSTR GetFrontImage() const;
 		void SetFrontImage(LPCTSTR pStrImage);
 
-		int	 GetRadius() const;
-		void SetRadius(LPCTSTR pStrRadius);
+		int	 GetCapRadius() const;
+		void SetCapRadius(UINT nRadius); //reset Radius rgn
+		int	 GetRingRadius() const;
+		void SetRingRadius(UINT nRadius);//reset Radius rgn
+		int	 GetRingInnerRadius() const;
+		void SetRingInnerRadius(UINT nRadius); // call before SetRingRadius
 		POINT GetCenterPoint() const;
-		void SetCenterPoint(LPCTSTR pStrPoint);
-		RECT GetStickRect();
-		void SetStickRect(RECT rc);
+
 		bool Activate();
 		void DoEvent(TEventUI& tevent);
 		void SetAttribute(LPCTSTR pstrName, LPCTSTR pstrValue);
 		SIZE EstimateSize(SIZE szAvailable);
-
+		 virtual void SetPos(RECT rc);
 
 		virtual void DoPaint(HDC hDC, const RECT& rcPaint);
 		virtual void PaintStatusImage(HDC hDC);
@@ -84,7 +86,7 @@ namespace DirectUI
 			float fAngle;
 			float fAngleInit;
 			unsigned int nRadius;
-			unsigned int nIterRadius;
+			unsigned int nInnerRadius;
 			POINT ptCenter;
 			HRGN hRgn;
 			CAngleRecord angle;
@@ -97,13 +99,11 @@ namespace DirectUI
 			__out Gdiplus::Rect* prcDest);
 		void AdjustAngle(POINT &ptMove, _tagGearProp& gp, BOOL isbegin);
 
-		unsigned int m_nRadius;
-		unsigned int m_nIterRadius;
+		bool PtMouseInRegion(HRGN& hRgn, const POINT& ptMouse, _tagGearProp& gp);
+
 		float m_fAngle;
 		POINT m_ptCenter;
 		POINT m_ptCurrent;
-		unsigned int m_nStickStep;
-		unsigned int m_nStep;
 
 		CUIString m_strCalibrationBackImg;
 		CUIString m_strCalibrationFrontImg;

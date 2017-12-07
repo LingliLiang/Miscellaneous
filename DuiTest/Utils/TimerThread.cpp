@@ -71,10 +71,10 @@ DWORD CTimerThread::TimerThread(LPVOID lpParam)
 
 
 VOID  CTimerThread::Callback(
-    __in_opt LPVOID lpArgToCompletionRoutine,
-    __in     DWORD dwTimerLowValue,
-    __in     DWORD dwTimerHighValue
-    )
+	__in_opt LPVOID lpArgToCompletionRoutine,
+	__in     DWORD dwTimerLowValue,
+	__in     DWORD dwTimerHighValue
+	)
 {
 	TRACE("lpArgToCompletionRoutine %x dwTimerLowValue %d dwTimerHighValue %d\n",
 		lpArgToCompletionRoutine,dwTimerLowValue,dwTimerHighValue);

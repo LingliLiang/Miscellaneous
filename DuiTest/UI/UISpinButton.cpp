@@ -6,18 +6,17 @@ static const float  PI = 3.1415926;
 namespace DirectUI
 {
 	CSpinButtonUI::CSpinButtonUI()
-		:m_nRadius(100),m_uButtonState(0),m_uOutButtonState(0),m_fAngle(0),m_nStickStep(0),m_nStep(0)
+		:m_uButtonState(0),m_uOutButtonState(0),m_fAngle(0)
 	{
 		GdiplusStartup(&m_gdiplusToken, &m_gdiplusStartupInput, NULL);
 		m_ptCenter.x = m_ptCenter.y = 0;
 		m_ptCurrent.x = m_ptCurrent.y = 0;
 		::memset(&m_gpCap,0,sizeof(_tagGearProp));
-		m_gpCap.nRadius = 60;
-		m_gpCap.nIterRadius = 0;
+		SetCapRadius(60);
 		m_gpCap.fAngleInit = 90.0f;
 		::memset(&m_gpOutRing,0,sizeof(_tagGearProp));
-		m_gpOutRing.nRadius = 80;
-		m_gpOutRing.nIterRadius = 60;
+		SetRingInnerRadius(60);
+		SetRingRadius(80);
 	}
 
 	CSpinButtonUI::~CSpinButtonUI()
@@ -86,6 +85,11 @@ namespace DirectUI
 				AdjustAngle(tevent.ptMouse, m_gpCap, FALSE);
 				Invalidate();
 			}
+			else if ((m_uOutButtonState & UISTATE_CAPTURED) != 0) 
+			{
+				AdjustAngle(tevent.ptMouse, m_gpOutRing, FALSE);
+				Invalidate();
+			}
 			return;
 		}
 
@@ -93,10 +97,15 @@ namespace DirectUI
 		{
 			if (IsEnabled())
 			{
-				if (::PtInRect(&m_rcItem, tevent.ptMouse)) 
+				if(PtMouseInRegion(m_gpCap.hRgn, tevent.ptMouse, m_gpCap))
 				{
 					m_uButtonState |= UISTATE_CAPTURED;
 					AdjustAngle(tevent.ptMouse, m_gpCap, TRUE);
+				}
+				else if(PtMouseInRegion(m_gpOutRing.hRgn, tevent.ptMouse, m_gpOutRing))
+				{
+					m_uOutButtonState |= UISTATE_CAPTURED;
+					AdjustAngle(tevent.ptMouse, m_gpOutRing, TRUE);
 				}
 			}
 			return;
@@ -106,10 +115,18 @@ namespace DirectUI
 		{
 			if (m_uButtonState & UISTATE_CAPTURED)
 			{
-				if (::PtInRect(&m_rcItem, tevent.ptMouse))
+				if(PtMouseInRegion(m_gpCap.hRgn, tevent.ptMouse, m_gpCap))
 					Activate();
 
 				m_uButtonState &= ~UISTATE_CAPTURED;
+				Invalidate();
+			}
+			else if (m_uOutButtonState & UISTATE_CAPTURED)
+			{
+				if(PtMouseInRegion(m_gpOutRing.hRgn, tevent.ptMouse, m_gpOutRing))
+					Activate();
+
+				m_uOutButtonState &= ~UISTATE_CAPTURED;
 				Invalidate();
 			}
 			return;
@@ -146,8 +163,10 @@ namespace DirectUI
 
 	void CSpinButtonUI::SetAttribute(LPCTSTR pstrName, LPCTSTR pstrValue)
 	{
-		if (_tcscmp(pstrName, _T("radius")) == 0) SetRadius(pstrValue);
-		else if (_tcscmp(pstrName, _T("centerpoint")) == 0) SetCenterPoint(pstrValue);
+		if (_tcscmp(pstrName, _T("radius")) == 0) SetCapRadius(_ttoi(pstrValue));
+		if (_tcscmp(pstrName, _T("radiusring")) == 0) SetRingRadius(_ttoi(pstrValue));
+		if (_tcscmp(pstrName, _T("radiusringinner")) == 0) SetRingInnerRadius(_ttoi(pstrValue));
+		//else if (_tcscmp(pstrName, _T("centerpoint")) == 0) SetCenterPoint(pstrValue);
 		else if (_tcscmp(pstrName, _T("imgrowcol")) == 0)
 		{
 			LPTSTR pstr = NULL;
@@ -177,6 +196,13 @@ namespace DirectUI
 		else if (_tcscmp(pstrName, _T("frontimage")) == 0) SetFrontImage(pstrValue);
 		else if (_tcscmp(pstrName, _T("focusimage")) == 0) SetFocusImage(pstrValue);
 		else CControlUI::SetAttribute(pstrName, pstrValue);		
+	}
+
+	void CSpinButtonUI::SetPos(RECT rc)
+	{
+		m_ptCenter.x = ((rc.right - rc.left) / 2);
+		m_ptCenter.y = ((rc.bottom - rc.top) / 2);
+		__super::SetPos(rc);
 	}
 
 	CAngleRecord::CAngleRecord()
@@ -258,14 +284,14 @@ namespace DirectUI
 	void CSpinButtonUI::AdjustAngle(POINT & ptMove, _tagGearProp& gp, BOOL isbegin)
 	{
 		REAL fAngle = 0.0;
-		POINT ptCenter = {m_rcItem.left + m_ptCenter.x, m_rcItem.top + m_ptCenter.y};
+		POINT ptCenter = gp.ptCenter; /*{m_rcItem.left + m_ptCenter.x, m_rcItem.top + m_ptCenter.y};*/
 		ULONG Length = 0;
 		if(isbegin)
 			fAngle = gp.angle.CalculateAngle(NULL, ptMove, ptCenter, &Length, isbegin);
 		else
 			fAngle = gp.angle.CalculateAngle(&gp.fAngle, ptMove, ptCenter, &Length, isbegin);
 		DUI__Trace(_T("GearPropAngle----     %f"), gp.fAngle);
-		if (Length <= m_nRadius * m_nRadius)
+		if (Length <= gp.nRadius)
 		{
 			m_ptCurrent.x = ptMove.x;
 			m_ptCurrent.y = ptMove.y;
@@ -273,9 +299,21 @@ namespace DirectUI
 		else
 		{
 			fAngle -= 90.0;
-			m_ptCurrent.x = ptCenter.x + LONG(m_nRadius*cos(fAngle*PI / 180));
-			m_ptCurrent.y = ptCenter.y + LONG(m_nRadius*sin(fAngle*PI / 180));
+			m_ptCurrent.x = ptCenter.x + LONG(gp.nRadius*cos(fAngle*PI / 180));
+			m_ptCurrent.y = ptCenter.y + LONG(gp.nRadius*sin(fAngle*PI / 180));
 		}
+	}
+
+	bool CSpinButtonUI::PtMouseInRegion(HRGN& hRgn, const POINT& ptMouse, _tagGearProp& gp)
+	{
+		CPoint ptCurr(ptMouse.x-m_rcItem.left, ptMouse.y - m_rcItem.top);
+		ptCurr.x -= (m_ptCenter.x - gp.nRadius);
+		ptCurr.y -= (m_ptCenter.y - gp.nRadius);
+		if(::PtInRegion(gp.hRgn, ptCurr.x, ptCurr.y))
+		{
+			return true;
+		}
+		return false;
 	}
 
 	void CSpinButtonUI::DoPaint(HDC hDC, const RECT& rcPaint)
@@ -354,6 +392,8 @@ namespace DirectUI
 					rcSrc.Height = uniImg->GetHeight();
 				}
 				if(prop){
+					prop->ptCenter.x = (LONG)ptCenter.X;
+					prop->ptCenter.y = (LONG)ptCenter.Y;
 					m.RotateAt((*prop).fAngle + (*prop).fAngleInit, ptCenter);
 					m_pGraphics->SetTransform(&m);
 				}
@@ -648,28 +688,63 @@ namespace DirectUI
 		m_strFrontImg = pStrImage;
 	}
 
-	int	CSpinButtonUI::GetRadius() const
+	int	CSpinButtonUI::GetCapRadius() const
 	{
-		return m_nRadius;
+		return m_gpCap.nRadius;
 	}
 
-	void CSpinButtonUI::SetRadius(LPCTSTR pStrRadius)
+	void CSpinButtonUI::SetCapRadius(UINT nRadius)
 	{
-		ASSERT(pStrRadius);
-		m_nRadius = _ttoi(pStrRadius);
+		if(m_gpCap.hRgn)
+		{
+			::DeleteObject(m_gpCap.hRgn);
+			m_gpCap.hRgn = NULL;
+		}
+		m_gpCap.nRadius = nRadius;
+		if(!m_gpCap.hRgn)
+		{
+			m_gpCap.hRgn = ::CreateEllipticRgn(0,0,nRadius<<1,nRadius<<1);
+		}
+	}
+
+	int	CSpinButtonUI::GetRingRadius() const
+	{
+		return m_gpOutRing.nRadius;
+	}
+
+	void CSpinButtonUI::SetRingRadius(UINT nRadius)
+	{
+		if(m_gpOutRing.hRgn)
+		{
+			::DeleteObject(m_gpOutRing.hRgn);
+			m_gpOutRing.hRgn = NULL;
+		}
+		m_gpOutRing.nRadius = nRadius;
+		if(!m_gpOutRing.hRgn)
+		{
+			int x = nRadius<<1;
+			int x1 = nRadius - m_gpOutRing.nInnerRadius;
+			int x2 = x - x1;
+			m_gpOutRing.hRgn = ::CreateEllipticRgn(0,0,x,x);
+			HRGN hRgn = ::CreateEllipticRgn(x1,x1,x2,x2);
+			::CombineRgn(m_gpOutRing.hRgn,m_gpOutRing.hRgn,hRgn,RGN_XOR);
+			::DeleteObject(hRgn);
+		}
+	}
+
+	int	CSpinButtonUI::GetRingInnerRadius() const
+	{
+		return m_gpOutRing.nInnerRadius;
+	}
+
+	void CSpinButtonUI::SetRingInnerRadius(UINT nRadius)
+	{
+		m_gpOutRing.nInnerRadius = nRadius;
 	}
 
 	POINT CSpinButtonUI::GetCenterPoint() const
 	{
 		return m_ptCenter;
-	}
-
-	void CSpinButtonUI::SetCenterPoint(LPCTSTR pStrPoint)
-	{
-		ASSERT(pStrPoint);
-		LPTSTR pstr = NULL;
-		m_ptCenter.x = _tcstol(pStrPoint, &pstr, 10);  ASSERT(pstr);    
-		m_ptCenter.y = _tcstol(pstr + 1, &pstr, 10);   ASSERT(pstr);   
 	}
 
 }/////namespace DirectUI
