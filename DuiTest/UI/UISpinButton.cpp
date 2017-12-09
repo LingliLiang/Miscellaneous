@@ -6,15 +6,16 @@ static const float  PI = 3.1415926;
 namespace DirectUI
 {
 	CSpinButtonUI::CSpinButtonUI()
-		:m_uButtonState(0),m_uOutButtonState(0),m_fAngle(0)
+		:m_uButtonState(0),m_uOutButtonState(0)
 	{
 		GdiplusStartup(&m_gdiplusToken, &m_gdiplusStartupInput, NULL);
 		m_ptCenter.x = m_ptCenter.y = 0;
 		m_ptCurrent.x = m_ptCurrent.y = 0;
-		::memset(&m_gpCap,0,sizeof(_tagGearProp));
+		::memset(&m_gpCap,0,sizeof(_tagGearProp) - sizeof(CAngleRecord));
+		m_gpCap.fMax = 360.0f;
 		SetCapRadius(60);
-		m_gpCap.fAngleInit = 90.0f;
-		::memset(&m_gpOutRing,0,sizeof(_tagGearProp));
+		::memset(&m_gpOutRing,0,sizeof(_tagGearProp) - sizeof(CAngleRecord));
+		m_gpOutRing.fMax = 360.0f;
 		SetRingInnerRadius(60);
 		SetRingRadius(80);
 	}
@@ -23,6 +24,16 @@ namespace DirectUI
 	{
 		try
 		{
+			if(m_gpCap.hRgn)
+			{
+				::DeleteObject(m_gpCap.hRgn);
+				m_gpCap.hRgn = NULL;
+			}
+			if(m_gpOutRing.hRgn)
+			{
+				::DeleteObject(m_gpOutRing.hRgn);
+				m_gpOutRing.hRgn = NULL;
+			}
 			GdiplusShutdown(m_gdiplusToken);
 		}
 		catch (...)
@@ -80,16 +91,45 @@ namespace DirectUI
 
 		if (tevent.Type == UIEVENT_MOUSEMOVE)
 		{
-			if ((m_uButtonState & UISTATE_CAPTURED) != 0) 
+			BOOL bInvalidate = FALSE;
+			if (m_uButtonState & UISTATE_CAPTURED) 
 			{
 				AdjustAngle(tevent.ptMouse, m_gpCap, FALSE);
-				Invalidate();
+				bInvalidate = TRUE;
 			}
-			else if ((m_uOutButtonState & UISTATE_CAPTURED) != 0) 
+			else if (m_uOutButtonState & UISTATE_CAPTURED) 
 			{
 				AdjustAngle(tevent.ptMouse, m_gpOutRing, FALSE);
-				Invalidate();
+				bInvalidate = TRUE;
 			}
+			else
+			{
+				auto bInCap = PtMouseInRegion(m_gpCap.hRgn, tevent.ptMouse, m_gpCap);
+				auto bInRing = bInCap ? false : PtMouseInRegion(m_gpOutRing.hRgn, tevent.ptMouse, m_gpOutRing);
+
+				if(bInCap && !(m_uButtonState & UISTATE_HOT))
+				{
+					m_uButtonState |= UISTATE_HOT;
+					bInvalidate = TRUE;
+				}
+				else if(!bInCap && (m_uButtonState & UISTATE_HOT))
+				{
+					m_uButtonState &= ~UISTATE_HOT;
+					bInvalidate = TRUE;
+				}
+
+				if(bInRing && !(m_uOutButtonState & UISTATE_HOT))
+				{
+					m_uOutButtonState |= UISTATE_HOT;
+					bInvalidate = TRUE;
+				}
+				else if(!bInRing && (m_uOutButtonState & UISTATE_HOT))
+				{
+					m_uOutButtonState &= ~UISTATE_HOT;
+					bInvalidate = TRUE;
+				}
+			} //not UISTATE_CAPTURED
+			if(bInvalidate) Invalidate();
 			return;
 		}
 
@@ -100,12 +140,16 @@ namespace DirectUI
 				if(PtMouseInRegion(m_gpCap.hRgn, tevent.ptMouse, m_gpCap))
 				{
 					m_uButtonState |= UISTATE_CAPTURED;
+					m_uButtonState |= UISTATE_PUSHED;
 					AdjustAngle(tevent.ptMouse, m_gpCap, TRUE);
+					Invalidate();
 				}
 				else if(PtMouseInRegion(m_gpOutRing.hRgn, tevent.ptMouse, m_gpOutRing))
 				{
 					m_uOutButtonState |= UISTATE_CAPTURED;
+					m_uOutButtonState |= UISTATE_PUSHED;
 					AdjustAngle(tevent.ptMouse, m_gpOutRing, TRUE);
+					Invalidate();
 				}
 			}
 			return;
@@ -118,7 +162,7 @@ namespace DirectUI
 				if(PtMouseInRegion(m_gpCap.hRgn, tevent.ptMouse, m_gpCap))
 					Activate();
 
-				m_uButtonState &= ~UISTATE_CAPTURED;
+				m_uButtonState &= ~(UISTATE_CAPTURED | UISTATE_PUSHED);
 				Invalidate();
 			}
 			else if (m_uOutButtonState & UISTATE_CAPTURED)
@@ -126,10 +170,18 @@ namespace DirectUI
 				if(PtMouseInRegion(m_gpOutRing.hRgn, tevent.ptMouse, m_gpOutRing))
 					Activate();
 
-				m_uOutButtonState &= ~UISTATE_CAPTURED;
+				m_uOutButtonState &= ~(UISTATE_CAPTURED | UISTATE_PUSHED);
 				Invalidate();
 			}
 			return;
+		}
+
+		if( tevent.Type == UIEVENT_MOUSELEAVE )
+		{
+			if( IsEnabled() ) {
+				m_uButtonState &= ~UISTATE_HOT;
+				m_uOutButtonState &= ~UISTATE_HOT;
+			}
 		}
 
 		if (tevent.Type == UIEVENT_CONTEXTMENU)
@@ -209,7 +261,7 @@ namespace DirectUI
 		:m_nQuadrant(0),m_b4to1(FALSE),m_b1to4(FALSE),m_fOffsetAngle(0),
 		m_bClockwise(FALSE),m_fLastAngle(0),m_fFirstAngle(0)
 	{
-	
+
 	}
 
 	float CAngleRecord::CalculateAngle(
@@ -364,15 +416,18 @@ namespace DirectUI
 		auto PaintImg=[&](CUIString& drawImg, _tagGearProp* prop)->void
 		{
 			CUIString strImg;
+			int nAlpha = 255;
 			CUIString strPathImage = CPaintManagerUI::GetResourcePath();
-			GetImageProp(drawImg, &strImg,  NULL, NULL);
+			GetImageProp(drawImg, &strImg,  NULL, NULL, &nAlpha);
 			strPathImage += strImg;
 			uniImg.reset(new Gdiplus::Bitmap(strPathImage.GetData()));
 			if(!strImg.IsEmpty() && uniImg.get()){
 				Matrix m;
+				ImageAttributes imageAtt;  
+				ImageAttributes* pAttributes = NULL;
 				Rect rcDst,rcSrc;
 				PointF ptCenter(m_rcItem.left + m_ptCenter.x, m_rcItem.top + m_ptCenter.y);
-				GetImageProp(drawImg, NULL,  &rcSrc, &rcDst);
+				GetImageProp(drawImg, NULL,  &rcSrc, &rcDst, NULL);
 				if(!rcDst.IsEmptyArea())
 				{
 					rcDst.Offset(m_rcItem.left,m_rcItem.top);
@@ -397,7 +452,13 @@ namespace DirectUI
 					m.RotateAt((*prop).fAngle + (*prop).fAngleInit, ptCenter);
 					m_pGraphics->SetTransform(&m);
 				}
-				m_pGraphics->DrawImage(uniImg.get(), rcDst, rcSrc.X, rcSrc.Y, rcSrc.Width, rcSrc.Height,UnitPixel);
+				if(nAlpha != 255)
+				{
+					REAL m[][5] = {{1,0,0,0,0}, {0,1,0,0,0}, {0,0,1,0,0}, {0,0,0,(float)nAlpha/255,0}, {0,0,0,0,1} };  
+					imageAtt.SetColorMatrix((ColorMatrix*)&m, ColorMatrixFlagsDefault, ColorAdjustTypeBitmap); 
+					pAttributes = &imageAtt;
+				}
+				m_pGraphics->DrawImage(uniImg.get(), rcDst, rcSrc.X, rcSrc.Y, rcSrc.Width, rcSrc.Height,UnitPixel,pAttributes);
 				if(prop){
 					m_pGraphics->ResetTransform();
 				}
@@ -420,16 +481,19 @@ namespace DirectUI
 
 		//绘制刻度前景图片,该图片随角度裁剪
 		if(!m_strCalibrationFrontImg.IsEmpty()){
+			int nAlpha = 255;
 			CUIString strImg;
 			CUIString strPathImage = CPaintManagerUI::GetResourcePath();
-			GetImageProp(m_strCalibrationFrontImg, &strImg,  NULL, NULL);
+			GetImageProp(m_strCalibrationFrontImg, &strImg,  NULL, NULL, &nAlpha);
 			strPathImage += strImg;
 			uniImg.reset(new Gdiplus::Bitmap(strPathImage.GetData()));
 
 			if(!strImg.IsEmpty() && uniImg.get()){
+				ImageAttributes imageAtt;  
+				ImageAttributes* pAttributes = NULL;
 				Rect rcDst,rcSrc;
 				PointF ptCenter(m_rcItem.left + m_ptCenter.x, m_rcItem.top + m_ptCenter.y);
-				GetImageProp(m_strCalibrationFrontImg, NULL,  &rcSrc, &rcDst);
+				GetImageProp(m_strCalibrationFrontImg, NULL,  &rcSrc, &rcDst, NULL);
 				if(!rcDst.IsEmptyArea())
 				{
 					rcDst.Offset(m_rcItem.left,m_rcItem.top);
@@ -448,13 +512,18 @@ namespace DirectUI
 					rcSrc.Width = uniImg->GetWidth();
 					rcSrc.Height = uniImg->GetHeight();
 				}
-
+				if(nAlpha != 255)
+				{
+					REAL m[][5] = {{1,0,0,0,0}, {0,1,0,0,0}, {0,0,1,0,0}, {0,0,0,(float)nAlpha/255,0}, {0,0,0,0,1} };  
+					imageAtt.SetColorMatrix((ColorMatrix*)&m, ColorMatrixFlagsDefault, ColorAdjustTypeBitmap); 
+					pAttributes = &imageAtt;
+				}
 				GraphicsPath pathPie;
 				pathPie.AddPie(rcDst,-90,m_gpCap.fAngle);
 				Region rgnOld;
 				m_pGraphics->GetClip(&rgnOld);
 				m_pGraphics->SetClip(&pathPie);
-				m_pGraphics->DrawImage(uniImg.get(), rcDst, rcSrc.X, rcSrc.Y, rcSrc.Width, rcSrc.Height,UnitPixel);
+				m_pGraphics->DrawImage(uniImg.get(), rcDst, rcSrc.X, rcSrc.Y, rcSrc.Width, rcSrc.Height,UnitPixel, pAttributes);
 				m_pGraphics->SetClip(&rgnOld);
 			}
 			else
@@ -464,12 +533,12 @@ namespace DirectUI
 		//绘制外轮选转按钮(主按钮外边按钮)的图片
 		if(!m_strRingNormalImg.IsEmpty()){
 			CUIString* pstrImg = NULL;
-			if(m_uOutButtonState & UISTATE_HOT)
-				pstrImg = &m_strRingHotImg;
+			if(m_uOutButtonState & UISTATE_DISABLED)
+				pstrImg = &m_strRingDisableImg;
 			else if(m_uOutButtonState & UISTATE_PUSHED)
 				pstrImg = &m_strRingPushImg;
-			else if(m_uOutButtonState & UISTATE_DISABLED)
-				pstrImg = &m_strRingDisableImg;
+			else if(m_uOutButtonState & UISTATE_HOT)
+				pstrImg = &m_strRingHotImg;
 			else
 				pstrImg = &m_strRingNormalImg;
 
@@ -479,12 +548,12 @@ namespace DirectUI
 		//绘制主选转按钮的状态图片
 		if(!m_strCapNormalImg.IsEmpty()){
 			CUIString* pstrImg =  NULL;
-			if(m_uButtonState & UISTATE_HOT)
-				pstrImg = &m_strCapHotImg;
+			if(m_uButtonState & UISTATE_DISABLED)
+				pstrImg = &m_strCapDisableImg;
 			else if(m_uButtonState & UISTATE_PUSHED)
 				pstrImg = &m_strCapPushImg;
-			else if(m_uButtonState & UISTATE_DISABLED)
-				pstrImg = &m_strCapDisableImg;
+			else if(m_uButtonState & UISTATE_HOT)
+				pstrImg = &m_strCapHotImg;
 			else
 				pstrImg = &m_strCapNormalImg;
 
@@ -507,7 +576,7 @@ namespace DirectUI
 	void CSpinButtonUI::PaintText(HDC hDC){
 	}
 
-	void CSpinButtonUI::GetImageProp(const CUIString& strImg, CUIString* pstrFile, Gdiplus::Rect* prcSrc, Gdiplus::Rect* prcDest)
+	void CSpinButtonUI::GetImageProp(const CUIString& strImg, CUIString* pstrFile, Gdiplus::Rect* prcSrc, Gdiplus::Rect* prcDest, int* pAlpha)
 	{
 
 		int chPos = 0,chEndPos = 0;
@@ -518,7 +587,7 @@ namespace DirectUI
 			{
 				chPos += 6; //len of  file='
 				chEndPos = strImg.Find(_T('\''),chPos);
-				pstrFile->Assign(strImg.GetData()+chPos,chEndPos);
+				pstrFile->Assign(strImg.GetData()+chPos,chEndPos - chPos);
 			}
 			else
 			{
@@ -534,7 +603,7 @@ namespace DirectUI
 				TCHAR rcStr[MAX_PATH] = {0};
 				chPos += 8; //len of  source='
 				chEndPos = strImg.Find(_T('\''),chPos);
-				_tcsncpy_s(rcStr,strImg.GetData()+chPos,chEndPos);
+				_tcsncpy_s(rcStr,strImg.GetData()+chPos,chEndPos - chPos);
 				if(_stscanf_s(rcStr,_T("%d,%d,%d,%d"), &rc.left, &rc.top, &rc.right, &rc.bottom) == 4)
 				{
 					prcSrc->X = rc.left;
@@ -553,7 +622,7 @@ namespace DirectUI
 				TCHAR rcStr[MAX_PATH] = {0};
 				chPos += 6; //len of  dest='
 				chEndPos = strImg.Find(_T('\''),chPos);
-				_tcsncpy_s(rcStr,strImg.GetData()+chPos,chEndPos);
+				_tcsncpy_s(rcStr,strImg.GetData()+chPos,chEndPos - chPos);
 				if(_stscanf_s(rcStr,_T("%d,%d,%d,%d"), &rc.left, &rc.top, &rc.right, &rc.bottom) == 4)
 				{
 					prcDest->X = rc.left;
@@ -564,9 +633,22 @@ namespace DirectUI
 			}
 		}
 
+		if(pAlpha)
+		{
+			if( (chPos = strImg.Find(_T("fade='"))) != -1)// fade=''
+			{
+				RECT rc = {0};
+				TCHAR rcStr[MAX_PATH] = {0};
+				chPos += 6; //len of  fade='
+				chEndPos = strImg.Find(_T('\''),chPos);
+				_tcsncpy_s(rcStr,strImg.GetData()+chPos,chEndPos - chPos);
+				if(_stscanf_s(rcStr,_T("%d"), pAlpha) == 1)
+				{
+				}
+			}
+
+		}
 	}
-
-
 
 	LPCTSTR CSpinButtonUI::GetCapNormalImage() const
 	{
@@ -745,6 +827,74 @@ namespace DirectUI
 	POINT CSpinButtonUI::GetCenterPoint() const
 	{
 		return m_ptCenter;
+	}
+
+	void CSpinButtonUI::SetCapMax(float fValue)
+	{
+		if(fValue < m_gpCap.fMin)
+			fValue = m_gpCap.fMin;
+		m_gpCap.fMax = fValue;
+	}
+
+	float CSpinButtonUI::GetCapMax() const
+	{
+		return m_gpCap.fMax;
+	}
+
+	void CSpinButtonUI::SetRingMax(float fValue)
+	{
+		if(fValue < m_gpOutRing.fMin )
+			fValue = m_gpOutRing.fMin;
+		m_gpOutRing.fMax = fValue;
+	}
+
+	float CSpinButtonUI::GetRingMax() const
+	{
+		return m_gpOutRing.fMax;
+	}
+
+	void CSpinButtonUI::SetCapMin(float fValue)
+	{
+		if(fValue > m_gpCap.fMax)
+			fValue = m_gpCap.fMax;
+		m_gpCap.fMin = fValue;
+	}
+
+	float CSpinButtonUI::GetCapMin() const	
+	{
+		return m_gpCap.fMin;
+	}
+
+	void CSpinButtonUI::SetRingMin(float fValue)
+	{
+		if(fValue > m_gpOutRing.fMax)
+			fValue = m_gpOutRing.fMax;
+		m_gpOutRing.fMin = fValue;
+	}
+
+	float CSpinButtonUI::GetRingMin() const
+	{
+		return m_gpOutRing.fMin;
+	}
+
+	void CSpinButtonUI::SetCapSpace(float fValue)
+	{
+		if(fValue > 0) m_gpCap.fSpace = fValue;
+	}
+
+	float CSpinButtonUI::GetCapSpace() const
+	{
+		return m_gpCap.fSpace;
+	}
+
+	void CSpinButtonUI::SetRingSpace(float fValue)
+	{
+		if(fValue > 0) m_gpOutRing.fSpace = fValue;
+	}
+
+	float CSpinButtonUI::GetRingSpace() const
+	{
+		return m_gpOutRing.fSpace;
 	}
 
 }/////namespace DirectUI

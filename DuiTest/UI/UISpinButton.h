@@ -69,6 +69,19 @@ namespace DirectUI
 		void SetRingRadius(UINT nRadius);//reset Radius rgn
 		int	 GetRingInnerRadius() const;
 		void SetRingInnerRadius(UINT nRadius); // call before SetRingRadius
+		void SetCapMax(float fValue);
+		float GetCapMax() const;
+		void SetRingMax(float fValue);
+		float GetRingMax() const;
+		void SetCapMin(float fValue);
+		float GetCapMin() const;
+		void SetRingMin(float fValue);
+		float GetRingMin() const;
+		void SetCapSpace(float fValue);
+		float GetCapSpace() const;
+		void SetRingSpace(float fValue);
+		float GetRingSpace() const;
+
 		POINT GetCenterPoint() const;
 
 		bool Activate();
@@ -83,6 +96,9 @@ namespace DirectUI
 	protected:
 		struct _tagGearProp
 		{
+			float fMax;
+			float fMin;
+			float fSpace;
 			float fAngle;
 			float fAngleInit;
 			unsigned int nRadius;
@@ -96,12 +112,12 @@ namespace DirectUI
 		void GetImageProp(const CUIString& strImg,
 			__out CUIString* pstrFile,
 			__out Gdiplus::Rect* prcSrc,
-			__out Gdiplus::Rect* prcDest);
+			__out Gdiplus::Rect* prcDest,
+			__out int* pAlpha);
 		void AdjustAngle(POINT &ptMove, _tagGearProp& gp, BOOL isbegin);
 
 		bool PtMouseInRegion(HRGN& hRgn, const POINT& ptMouse, _tagGearProp& gp);
 
-		float m_fAngle;
 		POINT m_ptCenter;
 		POINT m_ptCurrent;
 
@@ -124,9 +140,6 @@ namespace DirectUI
 
 		CUIString m_strFocusImg;
 		CUIString m_strFrontImg;
-		
-		CUIString m_strDirection;
-		HRGN m_hInteracRgn;
 
 		std::unique_ptr<Gdiplus::Graphics> m_pGraphics;
 		ULONG_PTR m_gdiplusToken;
