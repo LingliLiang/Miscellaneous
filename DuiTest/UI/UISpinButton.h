@@ -29,11 +29,11 @@ namespace DirectUI
 	{
 	public:
 		CSpinButtonUI();
-		~CSpinButtonUI();
+		virtual ~CSpinButtonUI();
 
-		LPCTSTR GetClass() const;
-		UINT GetControlFlags() const;
-		LPVOID GetInterface(LPCTSTR pstrName);
+		virtual LPCTSTR GetClass() const;
+		virtual UINT GetControlFlags() const;
+		virtual LPVOID GetInterface(LPCTSTR pstrName);
 
 		LPCTSTR GetCapNormalImage() const;
 		void SetCapNormalImage(LPCTSTR pStrImage);
@@ -81,13 +81,21 @@ namespace DirectUI
 		float GetCapSpace() const;
 		void SetRingSpace(float fValue);
 		float GetRingSpace() const;
+		void SetCapFixedAngle(float fValue);
+		float GetCapFixedAngle() const;
+		void SetRingFixedAngle(float fValue);
+		float GetRingFixedAngle() const;
+		void SetCapAngle(float fValue);
+		float GetCapAngle() const;
+		void SetRingAngle(float fValue);
+		float GetRingAngle() const;
 
 		POINT GetCenterPoint() const;
 
-		bool Activate();
-		void DoEvent(TEventUI& tevent);
-		void SetAttribute(LPCTSTR pstrName, LPCTSTR pstrValue);
-		SIZE EstimateSize(SIZE szAvailable);
+		virtual bool Activate();
+		virtual void DoEvent(TEventUI& tevent);
+		virtual void SetAttribute(LPCTSTR pstrName, LPCTSTR pstrValue);
+		virtual SIZE EstimateSize(SIZE szAvailable);
 		 virtual void SetPos(RECT rc);
 
 		virtual void DoPaint(HDC hDC, const RECT& rcPaint);
@@ -108,13 +116,13 @@ namespace DirectUI
 			CAngleRecord angle;
 		};
 
-		RECT GetAnalogStickImageRect(unsigned int step);
 		void GetImageProp(const CUIString& strImg,
 			__out CUIString* pstrFile,
 			__out Gdiplus::Rect* prcSrc,
 			__out Gdiplus::Rect* prcDest,
 			__out int* pAlpha);
 		void AdjustAngle(POINT &ptMove, _tagGearProp& gp, BOOL isbegin);
+		void AdjustAngle2(_tagGearProp& gp);
 
 		bool PtMouseInRegion(HRGN& hRgn, const POINT& ptMouse, _tagGearProp& gp);
 

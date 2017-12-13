@@ -16,10 +16,11 @@
     
     <!--<Include source="layers.xml"/>-->
 
-    <SpinButton name="spinbtn" width="128" height="128" radius="41" radiusringinner="41" radiusring="52"  centerpoint="64,64" bkimage="spinbk.png"
+    <SpinButton name="spinbtn" width="128" height="128" radius="41" radiusringinner="41" radiusring="52" bkimage="spinbk.png"
                 capnormalimage="file='spincap.png' " caphotimage="file='spincap.png' fade='200' " cappushimage="file='spincap.png' fade='160' "
                 calfrontimage="spincab.png"
                 ringnormalimage="file='spinring.png' " ringhotimage="file='spinring.png' fade='200' " ringpushimage="file='spinring.png' fade='160' "
+                spacecap="1.0" spacering="2.0"
                 />
     
     <!--<AnalogStick name="AStick" width="200" height="200" radius="100" centerpoint="100,100" imgrowcol="1,2" imgrect="0,0,512,512" bkimage="bk_AnalogStick.png" analogstickimage="stickarray_1.png"/>-->

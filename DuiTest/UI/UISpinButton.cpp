@@ -1,7 +1,7 @@
 #include "StdAfx.h"
 #include "UISpinButton.h"
 
-static const float  PI = 3.1415926;
+static const double  PI = 3.14159265358979323846;
 
 namespace DirectUI
 {
@@ -71,7 +71,10 @@ namespace DirectUI
 	bool CSpinButtonUI::Activate()
 	{
 		if (!CControlUI::Activate()) return false;
-		if (m_pManager) m_pManager->SendNotify(this, DUI_MSGTYPE_CLICK);
+		LPARAM btntype = 0;
+		if(m_uButtonState & UISTATE_CAPTURED) btntype = 1;
+		if(m_uOutButtonState & UISTATE_CAPTURED) btntype = 2;
+		if (m_pManager) m_pManager->SendNotify(this, DUI_MSGTYPE_CLICK, 0, btntype);
 
 		return true;
 	}
@@ -95,11 +98,13 @@ namespace DirectUI
 			if (m_uButtonState & UISTATE_CAPTURED) 
 			{
 				AdjustAngle(tevent.ptMouse, m_gpCap, FALSE);
+				AdjustAngle2(m_gpCap);
 				bInvalidate = TRUE;
 			}
 			else if (m_uOutButtonState & UISTATE_CAPTURED) 
 			{
 				AdjustAngle(tevent.ptMouse, m_gpOutRing, FALSE);
+				AdjustAngle2(m_gpOutRing);
 				bInvalidate = TRUE;
 			}
 			else
@@ -216,25 +221,34 @@ namespace DirectUI
 	void CSpinButtonUI::SetAttribute(LPCTSTR pstrName, LPCTSTR pstrValue)
 	{
 		if (_tcscmp(pstrName, _T("radius")) == 0) SetCapRadius(_ttoi(pstrValue));
-		if (_tcscmp(pstrName, _T("radiusring")) == 0) SetRingRadius(_ttoi(pstrValue));
-		if (_tcscmp(pstrName, _T("radiusringinner")) == 0) SetRingInnerRadius(_ttoi(pstrValue));
-		//else if (_tcscmp(pstrName, _T("centerpoint")) == 0) SetCenterPoint(pstrValue);
-		else if (_tcscmp(pstrName, _T("imgrowcol")) == 0)
+		else if (_tcscmp(pstrName, _T("radiusring")) == 0) SetRingRadius(_ttoi(pstrValue));
+		else if (_tcscmp(pstrName, _T("radiusringinner")) == 0) SetRingInnerRadius(_ttoi(pstrValue));
+		else if (_tcscmp(pstrName, _T("maxmincap")) == 0)
 		{
-			LPTSTR pstr = NULL;
-			SIZE sz = { 0 };
-			sz.cx = _tcstol(pstrValue, &pstr, 10);  ASSERT(pstr);
-			sz.cy = _tcstol(pstr + 1, &pstr, 10);   ASSERT(pstr);
+			double max = 0;
+			double min = 0;
+			auto ret = _stscanf_s(pstrValue,_T("%f,%f"),&max, &min);
+			if(ret == 2){
+				SetCapMax(max);
+				SetCapMin(min);
+			}
 		}
-		else if (_tcscmp(pstrName, _T("imgrect")) == 0)
+		else if (_tcscmp(pstrName, _T("maxminring")) == 0)
 		{
-			RECT rc = { 0 };
-			LPTSTR pstr = NULL;
-			rc.left = _tcstol(pstrValue, &pstr, 10);  ASSERT(pstr);
-			rc.top = _tcstol(pstr + 1, &pstr, 10);    ASSERT(pstr);
-			rc.right = _tcstol(pstr + 1, &pstr, 10);  ASSERT(pstr);
-			rc.bottom = _tcstol(pstr + 1, &pstr, 10); ASSERT(pstr);
+			double max = 0;
+			double min = 0;
+			auto ret = _stscanf_s(pstrValue,_T("%f,%f"),&max, &min);
+			if(ret == 2){
+				SetRingMax(max);
+				SetRingMin(min);
+			}
 		}
+		else if (_tcscmp(pstrName, _T("spacecap")) == 0) SetCapSpace(_ttof(pstrValue));
+		else if (_tcscmp(pstrName, _T("spacering")) == 0) SetRingSpace(_ttof(pstrValue));
+		else if (_tcscmp(pstrName, _T("fixedanglecap")) == 0) SetCapFixedAngle(_ttof(pstrValue));
+		else if (_tcscmp(pstrName, _T("fixedanglering")) == 0) SetRingFixedAngle(_ttof(pstrValue));
+		else if (_tcscmp(pstrName, _T("anglecap")) == 0) SetCapAngle(_ttof(pstrValue));
+		else if (_tcscmp(pstrName, _T("anglering")) == 0) SetRingAngle(_ttof(pstrValue));
 		else if (_tcscmp(pstrName, _T("capnormalimage")) == 0) SetCapNormalImage(pstrValue);
 		else if (_tcscmp(pstrName, _T("caphotimage")) == 0) SetCapHotImage(pstrValue);
 		else if (_tcscmp(pstrName, _T("cappushimage")) == 0) SetCapPushImage(pstrValue);
@@ -342,7 +356,7 @@ namespace DirectUI
 			fAngle = gp.angle.CalculateAngle(NULL, ptMove, ptCenter, &Length, isbegin);
 		else
 			fAngle = gp.angle.CalculateAngle(&gp.fAngle, ptMove, ptCenter, &Length, isbegin);
-		DUI__Trace(_T("GearPropAngle----     %f"), gp.fAngle);
+		//DUI__Trace(_T("GearPropAngle----     %f"), gp.fAngle);
 		if (Length <= gp.nRadius)
 		{
 			m_ptCurrent.x = ptMove.x;
@@ -354,6 +368,66 @@ namespace DirectUI
 			m_ptCurrent.x = ptCenter.x + LONG(gp.nRadius*cos(fAngle*PI / 180));
 			m_ptCurrent.y = ptCenter.y + LONG(gp.nRadius*sin(fAngle*PI / 180));
 		}
+	}
+
+	/*以.为分割, + _P 为.取其右边精度 -_P为.取其左边精度, 进行四舍五入*/
+	double roundprecision(_In_ double _X, _In_ int _P /*precision*/)
+	{
+		double _R = 0,_B = 0;
+		int i = 0;
+		if(!_X) return _X;
+		if(_P > 0) {
+			for (i = 0; i < _P; i++) _X *= 10;
+		} else if(_P < 0) {
+			for(i = _P; i < 0; i++) _X /= 10;
+		}
+		_R = modf(_X,&_B);
+		if(_X >= 0) {
+			if(_R >= 0.5) _B++;
+		} else {
+			if(_R <= -0.5) _B--;
+		}
+		if(_P > 0) {
+			for(i = 0; i < _P; i++) _B /= 10;
+		} else if(_P < 0) {
+			for(i = _P; i < 0; i++) _B *= 10;
+		}
+		return _B;
+	}
+
+	/*以_Y为基本份数, 对_X, 进行四舍五入*/
+	inline double roundydata(_In_ double _X, _In_ double _Y)
+	{
+		double _R = 0,_B = 0;
+		if(!_X || !_Y) return _X;
+		if(_Y < 0 ) _Y = abs(_Y);
+		_X /= _Y;
+		_R = modf(_X,&_B);
+		_B = _B*_Y;
+		if(_X >= 0) {
+			if(_R >= 0.49999999999998) _B += _Y;
+		} else {
+			if(_R <= -0.49999999999998) _B -= _Y;
+		}
+		return _B;
+	}
+
+	void CSpinButtonUI::AdjustAngle2(_tagGearProp& gp)
+	{
+		double fNewAngle = roundydata(gp.fAngleInit + gp.fAngle, gp.fSpace);
+		if(gp.fAngleInit) fNewAngle -= gp.fAngleInit;
+		if(fNewAngle > gp.fMax)
+		{
+			gp.fAngle = gp.fMax;			
+			fNewAngle = gp.fMax;
+		}
+		else if(fNewAngle < gp.fMin)
+		{
+			gp.fAngle = gp.fMin;
+			fNewAngle = gp.fMin;
+		}
+		//TRACE(_T("NewAngle----     %f\n"), fNewAngle);
+		if(m_pManager) m_pManager->SendNotify(this, DUI_MSGTYPE_VALUECHANGED,0,0);
 	}
 
 	bool CSpinButtonUI::PtMouseInRegion(HRGN& hRgn, const POINT& ptMouse, _tagGearProp& gp)
@@ -895,6 +969,46 @@ namespace DirectUI
 	float CSpinButtonUI::GetRingSpace() const
 	{
 		return m_gpOutRing.fSpace;
+	}
+
+	void CSpinButtonUI::SetCapFixedAngle(float fValue)
+	{
+		m_gpCap.fAngleInit = fValue;
+	}
+
+	float CSpinButtonUI::GetCapFixedAngle() const
+	{
+		return m_gpCap.fAngleInit;
+	}
+
+	void CSpinButtonUI::SetRingFixedAngle(float fValue)
+	{
+		m_gpOutRing.fAngleInit = fValue;
+	}
+
+	float CSpinButtonUI::GetRingFixedAngle() const
+	{
+		return m_gpOutRing.fAngleInit;
+	}
+
+	void CSpinButtonUI::SetCapAngle(float fValue)
+	{
+		m_gpCap.fAngle = fValue;
+	}
+
+	float CSpinButtonUI::GetCapAngle() const
+	{
+		return m_gpCap.fAngle;
+	}
+
+	void CSpinButtonUI::SetRingAngle(float fValue)
+	{
+		m_gpOutRing.fAngle = fValue;
+	}
+
+	float CSpinButtonUI::GetRingAngle() const
+	{
+		return m_gpOutRing.fAngle;
 	}
 
 }/////namespace DirectUI
