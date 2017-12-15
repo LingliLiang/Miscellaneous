@@ -443,4 +443,7 @@
     <Attribute name="lefticon" default="" type="STRING" comment="左图标"/>
     <Attribute name="righticon" default="" type="STRING" comment="右图标"/>
   </MenuItem>
+
+  <LayerLayout parent="VerticalLayout" >
+  </LayerLayout>
 </Controls>

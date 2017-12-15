@@ -5,6 +5,7 @@ class IWndEvent :
 	public IDialogBuilderCallback
 {
 public:
+	virtual ~IWndEvent(){}
 	virtual void InitWindow() = 0;
 	virtual bool Notify(TNotifyUI& msg) = 0;
 	virtual LRESULT HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled) = 0;

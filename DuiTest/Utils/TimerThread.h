@@ -5,6 +5,8 @@
 
 #include <map>
 #include <string>
+#include <functional>
+
 /**
 CreateWaitableTimer Document:
 http://msdn.microsoft.com/en-us/library/windows/desktop/ms682492(v=vs.85).aspx
@@ -18,8 +20,17 @@ public:
 	CTimerThread();
 	~CTimerThread();
 public:
-	int CreateTimer(unsigned int interval, void* lpParam);
-	void KillTimer();
+	//普通函数Timer创建
+	int CreateTimer(unsigned int interval, void(*pfn)(void*,DWORD,DWORD), void* lpParam = 0);
+	//类函数Timer创建
+	template<class O>
+	int CreateTimer(unsigned int interval, O* pO, void(O::*pfn)(void*,DWORD,DWORD), void* lpParam = 0)
+	{
+		if(!pO || !pfn) return FALSE;
+		m_funcCall = std::bind(pfn, pO, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+		return CreateTimer(interval,(void(*)(void*,DWORD,DWORD))NULL,lpParam);
+	}
+	void KillTimer(BOOL bWaitEnd = FALSE);
 private:
 	static DWORD WINAPI TimerThread(LPVOID lpParam);
 	static VOID WINAPI Callback(
@@ -32,7 +43,9 @@ private:
 		//member of the FILETIME structure.
 		__in     DWORD dwTimerHighValue
 		);
-
+	static VOID CALLBACK WakeAPCProc(
+		_In_ ULONG_PTR dwParam
+		);
 private:
 	HANDLE               m_hTimer;
 	int                    m_nInterval;
@@ -42,7 +55,9 @@ private:
 	PTIMERAPCROUTINE   m_callbackFunc;
 	HANDLE                m_hThread;
 	DWORD                m_dwThread;
-	bool                m_bRunning;
+	volatile long                m_lRunning;
+
+	std::function<void(void*,DWORD,DWORD)> m_funcCall;
 };
 
 #endif //_TIMERTHREAD_H
